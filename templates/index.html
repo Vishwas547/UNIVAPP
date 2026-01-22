@@ -10,24 +10,27 @@
 
 <form method="POST">
 
-<input name="name" placeholder="Name"><br><br>
-<input name="sid" placeholder="Student ID"><br><br>
-<input name="dept" placeholder="Department"><br><br>
-<input name="year" placeholder="Class / Year"><br><br>
+<input name="name" placeholder="Name" required><br><br>
+
+<input name="sid" placeholder="Student ID" required><br><br>
+
+<input name="email" type="email" placeholder="Student Email" required><br><br>
+
+<input name="dept" placeholder="Department" required><br><br>
+
+<input name="year" placeholder="Class / Year" required><br><br>
 
 <textarea name="request" rows="6" cols="40"
-placeholder="Enter your request"></textarea><br><br>
+placeholder="Enter your request" required></textarea><br><br>
 
 <button type="submit">Submit</button>
 
 </form>
 
 {% with messages = get_flashed_messages() %}
-  {% if messages %}
-     {% for m in messages %}
-        <p><b>{{ m }}</b></p>
-     {% endfor %}
-  {% endif %}
+  {% for m in messages %}
+     <p><b>{{ m }}</b></p>
+  {% endfor %}
 {% endwith %}
 
 </body>
