@@ -8,23 +8,22 @@ from sklearn.naive_bayes import MultinomialNB
 from dotenv import load_dotenv
 
 # ---------------- Load Environment Variables ----------------
-load_dotenv()  # loads variables from .env
+load_dotenv()
 
 DB_HOST = os.getenv("DB_HOST")
 DB_USER = os.getenv("DB_USER")
 DB_PASS = os.getenv("DB_PASS")
 DB_NAME = os.getenv("DB_NAME")
+DB_PORT = int(os.getenv("DB_PORT", 3306))
 
 EMAIL_USER = os.getenv("EMAIL_USER")
 EMAIL_PASS = os.getenv("EMAIL_PASS")
 
 # ---------------- Flask App Setup ----------------
 app = Flask(__name__)
-app.secret_key = os.urandom(24)  # needed for flash messages
+app.secret_key = os.urandom(24)
 
 # ---------------- Database Connection ----------------
-DB_PORT = int(os.getenv("DB_PORT", 3306))
-
 db = mysql.connector.connect(
     host=DB_HOST,
     user=DB_USER,
@@ -72,6 +71,7 @@ departments = [
 
 vectorizer = TfidfVectorizer(stop_words="english", ngram_range=(1, 2))
 X = vectorizer.fit_transform(requests_data)
+
 model = MultinomialNB()
 model.fit(X, departments)
 
@@ -98,7 +98,9 @@ def index():
         sid = request.form.get("sid")
         dept = request.form.get("dept")
         year = request.form.get("year")
-        request_text = request.form.get("request_text")
+
+        # 🔥 FIXED HERE
+        request_text = request.form.get("request")
 
         # Validate fields
         if not all([name, sid, dept, year, request_text]):
@@ -108,6 +110,54 @@ def index():
         # Predict department
         cleaned = clean_text(request_text)
         vector = vectorizer.transform([cleaned])
+        predicted_dept = model.predict(vector)[0]
+        receiver_email = department_emails[predicted_dept]
+
+        # Prepare email
+        email_body = f"""
+From:
+Name: {name}
+Student ID: {sid}
+Department: {dept}
+Class / Year: {year}
+
+----------------------------------
+Request:
+{request_text}
+"""
+
+        try:
+            send_email(
+                receiver_email,
+                f"University Request - {predicted_dept} Department",
+                email_body
+            )
+            flash(
+                f"Request successfully sent to {predicted_dept} Department",
+                "success"
+            )
+        except Exception as e:
+            flash(f"Email Error: {str(e)}", "danger")
+
+        # Save request to MySQL
+        cursor.execute(
+            """
+            INSERT INTO requests
+            (student_name, student_id, department, class_year,
+             request_text, predicted_dept, status)
+            VALUES (%s,%s,%s,%s,%s,%s,%s)
+            """,
+            (name, sid, dept, year, request_text, predicted_dept, "Sent")
+        )
+        db.commit()
+
+        return redirect(url_for("index"))
+
+    return render_template("index.html")
+
+# ---------------- Run App ----------------
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))        vector = vectorizer.transform([cleaned])
         predicted_dept = model.predict(vector)[0]
         receiver_email = department_emails[predicted_dept]
 
