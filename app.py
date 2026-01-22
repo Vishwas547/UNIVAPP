@@ -10,14 +10,19 @@ from dotenv import load_dotenv
 # ---------------- Load Environment Variables ----------------
 load_dotenv()
 
+# DB
 DB_HOST = os.getenv("DB_HOST")
 DB_USER = os.getenv("DB_USER")
 DB_PASS = os.getenv("DB_PASS")
 DB_NAME = os.getenv("DB_NAME")
 DB_PORT = int(os.getenv("DB_PORT", 3306))
 
-EMAIL_USER = os.getenv("EMAIL_USER")
-EMAIL_PASS = os.getenv("EMAIL_PASS")
+# SMTP (Brevo)
+SMTP_HOST = os.getenv("SMTP_HOST")
+SMTP_PORT = int(os.getenv("SMTP_PORT", 587))
+SMTP_USER = os.getenv("SMTP_USER")
+SMTP_PASS = os.getenv("SMTP_PASS")
+FROM_EMAIL = os.getenv("FROM_EMAIL")
 
 # ---------------- Flask App Setup ----------------
 app = Flask(__name__)
@@ -33,19 +38,19 @@ db = mysql.connector.connect(
 )
 cursor = db.cursor()
 
-# ---------------- Email Function (STARTTLS) ----------------
+# ---------------- Email Function (Brevo SMTP) ----------------
 def send_email(to_email, subject, body):
     msg = EmailMessage()
-    msg["From"] = EMAIL_USER
+    msg["From"] = FROM_EMAIL
     msg["To"] = to_email
     msg["Subject"] = subject
     msg.set_content(body)
 
-    with smtplib.SMTP("smtp.gmail.com", 587, timeout=20) as server:
+    with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=20) as server:
         server.ehlo()
         server.starttls()
         server.ehlo()
-        server.login(EMAIL_USER, EMAIL_PASS)
+        server.login(SMTP_USER, SMTP_PASS)
         server.send_message(msg)
 
 # ---------------- ML Model Setup ----------------
@@ -119,7 +124,7 @@ def index():
         predicted_dept = model.predict(vector)[0]
         receiver_email = department_emails[predicted_dept]
 
-        # Prepare email
+        # Prepare email body
         email_body = f"""
 From:
 Name: {name}
@@ -132,7 +137,7 @@ Request:
 {request_text}
 """
 
-        # ---------------- Save to DB FIRST ----------------
+        # ---------- Save to DB FIRST ----------
         cursor.execute(
             """
             INSERT INTO requests
@@ -141,12 +146,19 @@ Request:
              predicted_dept, status)
             VALUES (%s,%s,%s,%s,%s,%s,%s)
             """,
-            (name, sid, dept, year,
-             request_text, predicted_dept, "Sent")
+            (
+                name,
+                sid,
+                dept,
+                year,
+                request_text,
+                predicted_dept,
+                "Sent"
+            )
         )
         db.commit()
 
-        # ---------------- Try sending email (safe) ----------------
+        # ---------- Send Email ----------
         email_sent = True
         try:
             send_email(
@@ -165,7 +177,7 @@ Request:
             )
         else:
             flash(
-                "Request saved but email could not be sent right now.",
+                "Request saved but email could not be sent.",
                 "warning"
             )
 
