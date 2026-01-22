@@ -2,12 +2,11 @@ import os
 import requests
 from flask import Flask, render_template, request, flash, redirect, url_for
 import mysql.connector
-from email.message import EmailMessage
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.naive_bayes import MultinomialNB
 from dotenv import load_dotenv
 
-# ---------------- Load Env ----------------
+# ---------------- Load ENV ----------------
 load_dotenv()
 
 DB_HOST = os.getenv("DB_HOST")
@@ -16,24 +15,24 @@ DB_PASS = os.getenv("DB_PASS")
 DB_NAME = os.getenv("DB_NAME")
 DB_PORT = int(os.getenv("DB_PORT", 3306))
 
-FROM_EMAIL = os.getenv("FROM_EMAIL")
 BREVO_API_KEY = os.getenv("BREVO_API_KEY")
+FROM_EMAIL = os.getenv("FROM_EMAIL")
 
 # ---------------- Flask Setup ----------------
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", "devkey")
+app.secret_key = os.getenv("SECRET_KEY", "dev-secret")
 
-# ---------------- DB Connect ----------------
+# ---------------- Database ----------------
 db = mysql.connector.connect(
     host=DB_HOST,
     user=DB_USER,
     password=DB_PASS,
     database=DB_NAME,
-    port=DB_PORT
+    port=DB_PORT,
 )
 cursor = db.cursor()
 
-# ---------------- Email via Brevo API ----------------
+# ---------------- Brevo Email Sender ----------------
 def send_email(to_email, subject, body):
 
     url = "https://api.brevo.com/v3/smtp/email"
@@ -45,19 +44,22 @@ def send_email(to_email, subject, body):
     }
 
     payload = {
-        "sender": {"email": FROM_EMAIL},
+        "sender": {
+            "name": "University Request System",
+            "email": FROM_EMAIL,
+        },
         "to": [{"email": to_email}],
         "subject": subject,
         "textContent": body,
     }
 
-    response = requests.post(url, json=payload, headers=headers, timeout=20)
+    response = requests.post(url, json=payload, headers=headers, timeout=15)
 
-    if response.status_code not in [200, 201]:
+    if response.status_code not in (200, 201):
         raise Exception(response.text)
 
 
-# ---------------- ML Model ----------------
+# ---------------- ML MODEL ----------------
 requests_data = [
     "requesting leave due to health issues",
     "medical leave application",
@@ -95,9 +97,16 @@ department_emails = {
     "Hostel": "hosteloffice@university.edu",
 }
 
-
+# ---------------- Utils ----------------
 def clean_text(text):
-    ignore = ["respected sir", "respected madam", "thank you", "yours sincerely", "regards"]
+    ignore = [
+        "respected sir",
+        "respected madam",
+        "thank you",
+        "yours sincerely",
+        "regards",
+    ]
+
     text = text.lower()
     for word in ignore:
         text = text.replace(word, "")
@@ -138,17 +147,20 @@ Request:
 {request_text}
 """
 
+        email_success = True
+
         try:
             send_email(
                 receiver_email,
                 f"University Request - {predicted_dept} Department",
                 email_body,
             )
-            flash(f"Request sent to {predicted_dept} department", "success")
 
         except Exception as e:
             print("EMAIL ERROR:", e)
-            flash("Email failed but request saved.", "warning")
+            email_success = False
+
+        status = "Email Sent" if email_success else "Saved - Email Failed"
 
         cursor.execute(
             """
@@ -157,15 +169,28 @@ Request:
              request_text, predicted_dept, status)
             VALUES (%s,%s,%s,%s,%s,%s,%s)
             """,
-            (name, sid, dept, year, request_text, predicted_dept, "Sent"),
+            (
+                name,
+                sid,
+                dept,
+                year,
+                request_text,
+                predicted_dept,
+                status,
+            ),
         )
         db.commit()
+
+        if email_success:
+            flash(f"Request sent to {predicted_dept} department", "success")
+        else:
+            flash("Saved to DB but email delivery failed.", "warning")
 
         return redirect(url_for("index"))
 
     return render_template("index.html")
 
 
-# ---------------- Run ----------------
+# ---------------- Run Locally ----------------
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
