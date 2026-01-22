@@ -84,7 +84,13 @@ department_emails = {
 }
 
 def clean_text(text):
-    ignore = ["respected sir", "respected madam", "thank you", "yours sincerely", "regards"]
+    ignore = [
+        "respected sir",
+        "respected madam",
+        "thank you",
+        "yours sincerely",
+        "regards"
+    ]
     text = text.lower()
     for word in ignore:
         text = text.replace(word, "")
@@ -99,7 +105,7 @@ def index():
         dept = request.form.get("dept")
         year = request.form.get("year")
 
-        # ✅ fixed field name
+        # ✅ must match textarea name="request"
         request_text = request.form.get("request")
 
         if not all([name, sid, dept, year, request_text]):
@@ -142,11 +148,13 @@ Request:
         cursor.execute(
             """
             INSERT INTO requests
-            (student_name, student_id, department, class_year,
-             request_text, predicted_dept, status)
+            (student_name, student_id, department,
+             class_year, request_text,
+             predicted_dept, status)
             VALUES (%s,%s,%s,%s,%s,%s,%s)
             """,
-            (name, sid, dept, year, request_text, predicted_dept, "Sent")
+            (name, sid, dept, year,
+             request_text, predicted_dept, "Sent")
         )
         db.commit()
 
