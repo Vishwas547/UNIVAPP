@@ -33,7 +33,7 @@ db = mysql.connector.connect(
 )
 cursor = db.cursor()
 
-# ---------------- Email Function ----------------
+# ---------------- Email Function (STARTTLS) ----------------
 def send_email(to_email, subject, body):
     msg = EmailMessage()
     msg["From"] = EMAIL_USER
@@ -41,7 +41,10 @@ def send_email(to_email, subject, body):
     msg["Subject"] = subject
     msg.set_content(body)
 
-    with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=15) as server:
+    with smtplib.SMTP("smtp.gmail.com", 587, timeout=20) as server:
+        server.ehlo()
+        server.starttls()
+        server.ehlo()
         server.login(EMAIL_USER, EMAIL_PASS)
         server.send_message(msg)
 
