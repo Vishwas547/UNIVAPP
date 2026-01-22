@@ -23,11 +23,14 @@ app = Flask(__name__)
 app.secret_key = os.urandom(24)  # needed for flash messages
 
 # ---------------- Database Connection ----------------
+DB_PORT = int(os.getenv("DB_PORT", 3306))
+
 db = mysql.connector.connect(
     host=DB_HOST,
     user=DB_USER,
     password=DB_PASS,
-    database=DB_NAME
+    database=DB_NAME,
+    port=DB_PORT
 )
 cursor = db.cursor()
 
