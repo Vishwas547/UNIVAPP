@@ -3,6 +3,7 @@ from flask import Flask, render_template, request, flash, redirect
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.naive_bayes import MultinomialNB
 from dotenv import load_dotenv
+import psycopg2
 
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail
@@ -12,13 +13,18 @@ load_dotenv()
 
 SENDER_EMAIL = os.getenv("SENDER_EMAIL")
 SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY")
+DATABASE_URL = os.getenv("DATABASE_URL")
 
-if not SENDER_EMAIL or not SENDGRID_API_KEY:
-    raise RuntimeError("Missing SENDGRID_API_KEY or SENDER_EMAIL")
+if not all([SENDER_EMAIL, SENDGRID_API_KEY, DATABASE_URL]):
+    raise RuntimeError("Missing required env variables")
 
 # ---------------- FLASK ----------------
 app = Flask(__name__)
 app.secret_key = "secret123"
+
+# ---------------- DB CONNECTION ----------------
+def get_db():
+    return psycopg2.connect(DATABASE_URL)
 
 # ---------------- TRAIN DATA ----------------
 requests_data = [
@@ -89,6 +95,31 @@ def send_email(to_email, subject, body, reply_to):
     sg = SendGridAPIClient(SENDGRID_API_KEY)
     sg.send(message)
 
+# ---------------- CREATE TABLE IF NOT EXISTS ----------------
+def init_db():
+    conn = get_db()
+    cur = conn.cursor()
+
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS requests (
+        id SERIAL PRIMARY KEY,
+        name TEXT,
+        student_id TEXT,
+        student_email TEXT,
+        department TEXT,
+        year TEXT,
+        predicted_department TEXT,
+        request_text TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    """)
+
+    conn.commit()
+    cur.close()
+    conn.close()
+
+init_db()
+
 # ---------------- ROUTE ----------------
 @app.route("/", methods=["GET","POST"])
 def index():
@@ -112,7 +143,28 @@ def index():
 
         receiver = department_emails[predicted]
 
-        body = f"""
+        # -------- SAVE TO DB --------
+        conn = get_db()
+        cur = conn.cursor()
+
+        cur.execute("""
+        INSERT INTO requests
+        (name, student_id, student_email, department, year,
+         predicted_department, request_text)
+        VALUES (%s,%s,%s,%s,%s,%s,%s)
+        """,
+        (name, sid, student_email, dept, year, predicted, req_text))
+
+        conn.commit()
+        cur.close()
+        conn.close()
+
+        # -------- SEND EMAIL --------
+        try:
+            send_email(
+                receiver,
+                f"Student Request: {predicted} Department",
+                f"""
 Name: {name}
 Student ID: {sid}
 Student Email: {student_email}
@@ -122,20 +174,14 @@ Year: {year}
 ------------------
 Request:
 {req_text}
-"""
-
-        try:
-            send_email(
-                receiver,
-                f"Student Request: {predicted} Department",
-                body,
+""",
                 student_email,
             )
 
-            flash("Request sent successfully!")
+            flash("Request submitted and saved successfully!")
 
         except Exception:
-            flash("Email sending failed.")
+            flash("Saved to DB, but email failed.")
 
         return redirect("/")
 
