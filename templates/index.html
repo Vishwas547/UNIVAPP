@@ -1,37 +1,34 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>University AI Request System</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<title>University AI Request System</title>
 </head>
+
 <body>
 
-<h2>University AI Request System</h2>
+<h2>University Request Form</h2>
 
-{% with messages = get_flashed_messages(with_categories=true) %}
-  {% for category, msg in messages %}
-    <div class="alert {{ category }}">{{ msg }}</div>
-  {% endfor %}
-{% endwith %}
+<form method="POST">
 
-<form method="post">
-    <label for="name">Student Name:</label>
-    <input type="text" id="name" name="name" placeholder="Enter your full name" required>
+<input name="name" placeholder="Name"><br><br>
+<input name="sid" placeholder="Student ID"><br><br>
+<input name="dept" placeholder="Department"><br><br>
+<input name="year" placeholder="Class / Year"><br><br>
 
-    <label for="sid">Student ID:</label>
-    <input type="text" id="sid" name="sid" placeholder="Enter your student ID" required>
+<textarea name="request" rows="6" cols="40"
+placeholder="Enter your request"></textarea><br><br>
 
-    <label for="dept">Department:</label>
-    <input type="text" id="dept" name="dept" placeholder="Enter your department" required>
+<button type="submit">Submit</button>
 
-    <label for="year">Class / Year:</label>
-    <input type="text" id="year" name="year" placeholder="Enter your class/year" required>
-
-    <label for="request">Request Letter:</label>
-    <textarea id="request" name="request" placeholder="Write your request here..." required></textarea>
-
-    <button type="submit">Submit Request</button>
 </form>
+
+{% with messages = get_flashed_messages() %}
+  {% if messages %}
+     {% for m in messages %}
+        <p><b>{{ m }}</b></p>
+     {% endfor %}
+  {% endif %}
+{% endwith %}
 
 </body>
 </html>
