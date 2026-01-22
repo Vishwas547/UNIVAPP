@@ -41,7 +41,7 @@ def send_email(to_email, subject, body):
     msg["Subject"] = subject
     msg.set_content(body)
 
-    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+    with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=15) as server:
         server.login(EMAIL_USER, EMAIL_PASS)
         server.send_message(msg)
 
@@ -104,8 +104,6 @@ def index():
         sid = request.form.get("sid")
         dept = request.form.get("dept")
         year = request.form.get("year")
-
-        # ✅ must match textarea name="request"
         request_text = request.form.get("request")
 
         if not all([name, sid, dept, year, request_text]):
@@ -131,20 +129,7 @@ Request:
 {request_text}
 """
 
-        try:
-            send_email(
-                receiver_email,
-                f"University Request - {predicted_dept} Department",
-                email_body
-            )
-            flash(
-                f"Request successfully sent to {predicted_dept} Department",
-                "success"
-            )
-        except Exception as e:
-            flash(f"Email Error: {str(e)}", "danger")
-
-        # Save request to MySQL
+        # ---------------- Save to DB FIRST ----------------
         cursor.execute(
             """
             INSERT INTO requests
@@ -157,6 +142,29 @@ Request:
              request_text, predicted_dept, "Sent")
         )
         db.commit()
+
+        # ---------------- Try sending email (safe) ----------------
+        email_sent = True
+        try:
+            send_email(
+                receiver_email,
+                f"University Request - {predicted_dept} Department",
+                email_body
+            )
+        except Exception as e:
+            email_sent = False
+            print("EMAIL ERROR:", e)
+
+        if email_sent:
+            flash(
+                f"Request saved and sent to {predicted_dept} Department",
+                "success"
+            )
+        else:
+            flash(
+                "Request saved but email could not be sent right now.",
+                "warning"
+            )
 
         return redirect(url_for("index"))
 
