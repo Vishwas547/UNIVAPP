@@ -50,7 +50,7 @@ model = MultinomialNB()
 model.fit(X, departments)
 
 department_emails = {
-    "Academic": "lnv4687@gmail.com",
+    "Academic": "vishwasbekkanti@gmail.com",
     "Accounts": "accounts@university.edu",
     "Examination": "examcell@university.edu",
     "Scholarship": "scholarship@university.edu",
