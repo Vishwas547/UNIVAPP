@@ -99,10 +99,9 @@ def index():
         dept = request.form.get("dept")
         year = request.form.get("year")
 
-        # 🔥 FIXED HERE
+        # ✅ fixed field name
         request_text = request.form.get("request")
 
-        # Validate fields
         if not all([name, sid, dept, year, request_text]):
             flash("All fields are required", "danger")
             return redirect(url_for("index"))
@@ -147,41 +146,6 @@ Request:
              request_text, predicted_dept, status)
             VALUES (%s,%s,%s,%s,%s,%s,%s)
             """,
-            (name, sid, dept, year, request_text, predicted_dept, "Sent")
-        )
-        db.commit()
-
-        return redirect(url_for("index"))
-
-    return render_template("index.html")
-
-# ---------------- Run App ----------------
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))        vector = vectorizer.transform([cleaned])
-        predicted_dept = model.predict(vector)[0]
-        receiver_email = department_emails[predicted_dept]
-
-        # Prepare email
-        email_body = f"""
-From:
-Name: {name}
-Student ID: {sid}
-Department: {dept}
-Class / Year: {year}
-
-----------------------------------
-Request:
-{request_text}
-"""
-        try:
-            send_email(receiver_email, f"University Request - {predicted_dept} Department", email_body)
-            flash(f"Request successfully sent to {predicted_dept} Department", "success")
-        except Exception as e:
-            flash(f"Email Error: {str(e)}", "danger")
-
-        # Save request to MySQL
-        cursor.execute(
-            "INSERT INTO requests (student_name, student_id, department, class_year, request_text, predicted_dept, status) VALUES (%s,%s,%s,%s,%s,%s,%s)",
             (name, sid, dept, year, request_text, predicted_dept, "Sent")
         )
         db.commit()
