@@ -1,0 +1,10 @@
+python -m venv venv
+
+
+Activate it:
+
+venv\Scripts\activate
+
+pip install flask mysql-connector-python gunicorn python-dotenv
+
+

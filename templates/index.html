@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>University AI Request System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<h2>University AI Request System</h2>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for category, msg in messages %}
+    <div class="alert {{ category }}">{{ msg }}</div>
+  {% endfor %}
+{% endwith %}
+
+<form method="post">
+    <label for="name">Student Name:</label>
+    <input type="text" id="name" name="name" placeholder="Enter your full name" required>
+
+    <label for="sid">Student ID:</label>
+    <input type="text" id="sid" name="sid" placeholder="Enter your student ID" required>
+
+    <label for="dept">Department:</label>
+    <input type="text" id="dept" name="dept" placeholder="Enter your department" required>
+
+    <label for="year">Class / Year:</label>
+    <input type="text" id="year" name="year" placeholder="Enter your class/year" required>
+
+    <label for="request">Request Letter:</label>
+    <textarea id="request" name="request" placeholder="Write your request here..." required></textarea>
+
+    <button type="submit">Submit Request</button>
+</form>
+
+</body>
+</html>
