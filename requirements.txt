@@ -3,3 +3,4 @@ scikit-learn
 python-dotenv
 gunicorn
 sendgrid
+psycopg2-binary
