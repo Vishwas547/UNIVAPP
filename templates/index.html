@@ -1,37 +1,210 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<title>University AI Request System</title>
+  <meta charset="UTF-8" />
+  <title>University AI Request System</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Google Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: 'Inter', sans-serif;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #ff512f, #dd2476, #8134af);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 44px;
+    }
+
+    .card {
+      background: linear-gradient(180deg, #ffffff, #fafafa);
+      width: 100%;
+      max-width: 560px;
+      border-radius: 34px;
+      padding: 42px 44px;
+      box-shadow:
+        0 35px 90px rgba(0,0,0,0.15),
+        0 15px 35px rgba(0,0,0,0.10);
+      backdrop-filter: blur(14px);
+      animation: popIn 0.6s ease;
+    }
+
+    @keyframes popIn {
+      from { opacity: 0; transform: scale(0.96) translateY(18px); }
+      to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    h2 {
+      text-align: center;
+      margin-bottom: 30px;
+      font-size: 28px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #ff512f, #dd2476, #8134af);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .form-group {
+      margin-bottom: 18px;
+    }
+
+    label {
+      display: block;
+      font-size: 13px;
+      margin-bottom: 6px;
+      color: #555;
+      font-weight: 600;
+    }
+
+    input, textarea {
+      width: 100%;
+      padding: 13px 16px;
+      border-radius: 16px;
+      border: 1px solid #e5e5e5;
+      outline: none;
+      font-size: 15px;
+      transition: 0.25s ease;
+      background: #fafafa;
+    }
+
+    input:focus, textarea:focus {
+      border-color: #dd2476;
+      background: white;
+      box-shadow: 0 0 0 3px rgba(221,36,118,0.18);
+    }
+
+    textarea { resize: none; }
+
+    button {
+      width: 100%;
+      padding: 15px;
+      margin-top: 18px;
+      background: linear-gradient(135deg, #ff512f, #dd2476, #8134af);
+      background-size: 200% 200%;
+      color: white;
+      border: none;
+      border-radius: 22px;
+      font-size: 17px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: 0.25s ease;
+    }
+
+    button:hover {
+      background-position: right center;
+      transform: translateY(-2px);
+      box-shadow: 0 12px 26px rgba(0,0,0,0.25);
+    }
+
+    .flash {
+      text-align: center;
+      margin-top: 18px;
+      font-weight: 600;
+      color: #dd2476;
+    }
+
+    footer {
+      text-align: center;
+      margin-top: 24px;
+      font-size: 12px;
+      color: #888;
+    }
+
+    /* ---------------- RESPONSIVE BREAKPOINTS ---------------- */
+
+    /* Phones */
+    @media (max-width: 600px) {
+      body { padding: 18px; }
+
+      .card {
+        padding: 26px 22px;
+        border-radius: 22px;
+      }
+
+      h2 { font-size: 22px; }
+
+      input, textarea { font-size: 14px; }
+
+      button { font-size: 15px; }
+    }
+
+    /* Tablets / iPads */
+    @media (min-width: 601px) and (max-width: 1024px) {
+      .card {
+        max-width: 620px;
+        padding: 38px 36px;
+      }
+
+      h2 { font-size: 26px; }
+    }
+
+    /* Large laptops / desktops */
+    @media (min-width: 1400px) {
+      .card {
+        max-width: 680px;
+        padding: 46px 48px;
+      }
+
+      h2 { font-size: 30px; }
+    }
+  </style>
 </head>
 
 <body>
 
-<h2>University Request Form</h2>
+  <div class="card">
+    <h2>Intelligent Request Routing and Management System</h2>
 
-<form method="POST">
+    <form method="POST">
 
-<input name="name" placeholder="Name" required><br><br>
+      <div class="form-group">
+        <label>Name</label>
+        <input name="name" placeholder="Enter your full name" required />
+      </div>
 
-<input name="sid" placeholder="Student ID" required><br><br>
+      <div class="form-group">
+        <label>Student ID</label>
+        <input name="sid" placeholder="Enter student ID" required />
+      </div>
 
-<input name="email" type="email" placeholder="Student Email" required><br><br>
+      <div class="form-group">
+        <label>Student Email</label>
+        <input type="email" name="email" placeholder="Enter your email" required />
+      </div>
 
-<input name="dept" placeholder="Department" required><br><br>
+      <div class="form-group">
+        <label>Department</label>
+        <input name="dept" placeholder="Your department" required />
+      </div>
 
-<input name="year" placeholder="Class / Year" required><br><br>
+      <div class="form-group">
+        <label>Class / Year</label>
+        <input name="year" placeholder="Example: 3rd Year CSE" required />
+      </div>
 
-<textarea name="request" rows="6" cols="40"
-placeholder="Enter your request" required></textarea><br><br>
+      <div class="form-group">
+        <label>Request</label>
+        <textarea name="request" rows="5" placeholder="Describe your issue clearly..." required></textarea>
+      </div>
 
-<button type="submit">Submit</button>
+      <button type="submit">🚀 Submit Request</button>
 
-</form>
+    </form>
 
-{% with messages = get_flashed_messages() %}
-  {% for m in messages %}
-     <p><b>{{ m }}</b></p>
-  {% endfor %}
-{% endwith %}
+    
+
+    <footer>
+      Intelligent Request Routing and Management System
+    </footer>
+  </div>
 
 </body>
 </html>
