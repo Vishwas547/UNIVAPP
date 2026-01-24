@@ -1,10 +1,2 @@
-python -m venv venv
-
-
-Activate it:
-
-venv\Scripts\activate
-
-pip install flask mysql-connector-python gunicorn python-dotenv
-
-
+C:\Users\Vishwas>mysql -h mysql-34fa4628-bekkantivishwas-dfb2.h.aivencloud.com -P 28177 -u avnadmin -p --ssl-mode=REQUIRED defaultdb
+password is at aiven
