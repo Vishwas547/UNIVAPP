@@ -3,7 +3,7 @@ from flask import Flask, render_template, request, flash, redirect
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.naive_bayes import MultinomialNB
 from dotenv import load_dotenv
-import psycopg2
+import mysql.connector
 
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail
@@ -13,9 +13,22 @@ load_dotenv()
 
 SENDER_EMAIL = os.getenv("SENDER_EMAIL")
 SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY")
-DATABASE_URL = os.getenv("DATABASE_URL")
 
-if not all([SENDER_EMAIL, SENDGRID_API_KEY, DATABASE_URL]):
+MYSQL_HOST = os.getenv("MYSQL_HOST")
+MYSQL_PORT = os.getenv("MYSQL_PORT")
+MYSQL_USER = os.getenv("MYSQL_USER")
+MYSQL_PASSWORD = os.getenv("MYSQL_PASSWORD")
+MYSQL_DB = os.getenv("MYSQL_DB")
+
+if not all([
+    SENDER_EMAIL,
+    SENDGRID_API_KEY,
+    MYSQL_HOST,
+    MYSQL_PORT,
+    MYSQL_USER,
+    MYSQL_PASSWORD,
+    MYSQL_DB,
+]):
     raise RuntimeError("Missing required env variables")
 
 # ---------------- FLASK ----------------
@@ -24,7 +37,13 @@ app.secret_key = "secret123"
 
 # ---------------- DB CONNECTION ----------------
 def get_db():
-    return psycopg2.connect(DATABASE_URL)
+    return mysql.connector.connect(
+        host=MYSQL_HOST,
+        port=int(MYSQL_PORT),
+        user=MYSQL_USER,
+        password=MYSQL_PASSWORD,
+        database=MYSQL_DB,
+    )
 
 # ---------------- TRAIN DATA ----------------
 requests_data = [
@@ -95,14 +114,15 @@ def send_email(to_email, subject, body, reply_to):
     sg = SendGridAPIClient(SENDGRID_API_KEY)
     sg.send(message)
 
-# ---------------- CREATE TABLE IF NOT EXISTS ----------------
+# ---------------- CREATE TABLE ----------------
 def init_db():
+
     conn = get_db()
     cur = conn.cursor()
 
     cur.execute("""
     CREATE TABLE IF NOT EXISTS requests (
-        id SERIAL PRIMARY KEY,
+        id INT AUTO_INCREMENT PRIMARY KEY,
         name TEXT,
         student_id TEXT,
         student_email TEXT,
