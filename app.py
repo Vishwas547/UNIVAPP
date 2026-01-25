@@ -1,170 +1,214 @@
-from flask import Flask, render_template, request, redirect, url_for
-from flask_login import (
-    LoginManager, UserMixin,
-    login_user, login_required,
-    logout_user, current_user
-)
-from werkzeug.security import generate_password_hash, check_password_hash
-from pymongo import MongoClient
-from bson.objectid import ObjectId
-from datetime import datetime
 import os
-import pdfplumber
-import re
+from flask import Flask, render_template, request, flash, redirect
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.naive_bayes import MultinomialNB
+from dotenv import load_dotenv
+import mysql.connector
 
-# ---------------- APP ----------------
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import Mail
 
+# ---------------- LOAD ENV ----------------
+load_dotenv()
+
+SENDER_EMAIL = os.getenv("SENDER_EMAIL")
+SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY")
+
+MYSQL_HOST = os.getenv("MYSQL_HOST")
+MYSQL_PORT = os.getenv("MYSQL_PORT")
+MYSQL_USER = os.getenv("MYSQL_USER")
+MYSQL_PASSWORD = os.getenv("MYSQL_PASSWORD")
+MYSQL_DB = os.getenv("MYSQL_DB")
+
+if not all([
+    SENDER_EMAIL,
+    SENDGRID_API_KEY,
+    MYSQL_HOST,
+    MYSQL_PORT,
+    MYSQL_USER,
+    MYSQL_PASSWORD,
+    MYSQL_DB,
+]):
+    raise RuntimeError("Missing required env variables")
+
+# ---------------- FLASK ----------------
 app = Flask(__name__)
-app.secret_key = "supersecretkey"
+app.secret_key = "secret123"
 
-# ---------------- MONGODB ----------------
+# ---------------- DB CONNECTION ----------------
+def get_db():
+    return mysql.connector.connect(
+        host=MYSQL_HOST,
+        port=int(MYSQL_PORT),
+        user=MYSQL_USER,
+        password=MYSQL_PASSWORD,
+        database=MYSQL_DB,
+    )
 
-MONGO_URI = os.environ.get("MONGODB_URI")
-
-client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
-
-try:
-    client.admin.command("ping")
-    print("✅ MongoDB connection successful")
-except Exception as e:
-    print("❌ MongoDB connection failed:", e)
-
-db = client["resume_app"]
-users_col = db["users"]
-analysis_col = db["analysis"]
-
-# ---------------- LOGIN ----------------
-
-login_manager = LoginManager()
-login_manager.login_view = "login"
-login_manager.init_app(app)
-
-class User(UserMixin):
-    def __init__(self, user):
-        self.id = str(user["_id"])
-        self.email = user["email"]
-
-@login_manager.user_loader
-def load_user(user_id):
-    user = users_col.find_one({"_id": ObjectId(user_id)})
-    return User(user) if user else None
-
-# ---------------- LOGIC ----------------
-
-SKILLS = [
-    "python", "java", "c++", "sql", "javascript",
-    "html", "css", "react", "node", "flask",
-    "django", "machine learning", "data science",
-    "aws", "docker", "git"
+# ---------------- TRAIN DATA ----------------
+requests_data = [
+    "requesting leave due to health issues",
+    "medical leave application",
+    "requesting bonafide certificate",
+    "need bonafide for educational purpose",
+    "fee paid but not updated",
+    "scholarship amount not credited",
+    "hall ticket not generated",
+    "exam fee issue",
+    "update phone number in scholarship site",
+    "update personal details",
+    "hostel room problem",
+    "water problem in hostel"
 ]
 
+departments = [
+    "Academic","Academic",
+    "Academic","Academic",
+    "Accounts","Accounts",
+    "Examination","Examination",
+    "Scholarship","Scholarship",
+    "Hostel","Hostel"
+]
+
+vectorizer = TfidfVectorizer(stop_words="english", ngram_range=(1,2))
+X = vectorizer.fit_transform(requests_data)
+
+model = MultinomialNB()
+model.fit(X, departments)
+
+# ---------------- EMAILS ----------------
+department_emails = {
+    "Academic": "vishwasbekkanti@gmail.com",
+    "Accounts": "accounts@university.edu",
+    "Examination": "examcell@university.edu",
+    "Scholarship": "scholarship@university.edu",
+    "Hostel": "hosteloffice@university.edu"
+}
+
+# ---------------- CLEAN ----------------
 def clean_text(text):
-    return re.sub(r"\s+", " ", text.lower())
+    ignore = [
+        "respected sir",
+        "respected madam",
+        "thank you",
+        "regards",
+        "yours sincerely",
+    ]
+    text = text.lower()
+    for i in ignore:
+        text = text.replace(i, "")
+    return text
 
-def extract_skills(text):
-    return [s for s in SKILLS if s in clean_text(text)]
+# ---------------- SEND EMAIL ----------------
+def send_email(to_email, subject, body, reply_to):
 
-def analyze_resume_with_jd(resume_text, jd_text):
-    resume_skills = extract_skills(resume_text)
-    jd_skills = extract_skills(jd_text)
+    message = Mail(
+        from_email=SENDER_EMAIL,
+        to_emails=to_email,
+        subject=subject,
+        plain_text_content=body,
+    )
 
-    overlap = list(set(resume_skills) & set(jd_skills))
-    missing = list(set(jd_skills) - set(resume_skills))
+    message.reply_to = reply_to
 
-    score = int((len(overlap) / len(jd_skills)) * 100) if jd_skills else 0
+    sg = SendGridAPIClient(SENDGRID_API_KEY)
+    sg.send(message)
 
-    return score, overlap, missing
+# ---------------- CREATE TABLE ----------------
+def init_db():
 
-# ---------------- ROUTES ----------------
+    conn = get_db()
+    cur = conn.cursor()
 
-@app.route("/", methods=["GET", "POST"])
-@login_required
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS requests (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        name TEXT,
+        student_id TEXT,
+        student_email TEXT,
+        department TEXT,
+        year TEXT,
+        predicted_department TEXT,
+        request_text TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    """)
+
+    conn.commit()
+    cur.close()
+    conn.close()
+
+init_db()
+
+# ---------------- ROUTE ----------------
+@app.route("/", methods=["GET","POST"])
 def index():
-    score = None
-    overlap = []
-    missing = []
 
     if request.method == "POST":
-        file = request.files.get("resume")
-        jd_text = request.form.get("job_description", "")
 
-        if file:
-            text = ""
-            with pdfplumber.open(file) as pdf:
-                for page in pdf.pages:
-                    text += page.extract_text() or ""
+        name = request.form["name"]
+        sid = request.form["sid"]
+        student_email = request.form["email"]
+        dept = request.form["dept"]
+        year = request.form["year"]
+        req_text = request.form["request"]
 
-            score, overlap, missing = analyze_resume_with_jd(text, jd_text)
+        if not all([name, sid, student_email, dept, year, req_text]):
+            flash("All fields are required")
+            return redirect("/")
 
-            analysis_col.insert_one({
-                "user_id": current_user.id,
-                "score": score,
-                "created_at": datetime.utcnow()
-            })
+        cleaned = clean_text(req_text)
+        vec = vectorizer.transform([cleaned])
+        predicted = model.predict(vec)[0]
 
-    return render_template(
-        "index.html",
-        score=score,
-        overlap=overlap,
-        missing=missing
-    )
+        receiver = department_emails[predicted]
 
-@app.route("/history")
-@login_required
-def history():
-    records = list(
-        analysis_col.find({"user_id": current_user.id})
-        .sort("created_at", -1)
-    )
+        # -------- SAVE TO DB --------
+        conn = get_db()
+        cur = conn.cursor()
 
-    return render_template("history.html", analyses=records)
+        cur.execute("""
+        INSERT INTO requests
+        (name, student_id, student_email, department, year,
+         predicted_department, request_text)
+        VALUES (%s,%s,%s,%s,%s,%s,%s)
+        """,
+        (name, sid, student_email, dept, year, predicted, req_text))
 
-@app.route("/register", methods=["GET", "POST"])
-def register():
-    if request.method == "POST":
-        email = request.form["email"]
-        password = generate_password_hash(request.form["password"])
+        conn.commit()
+        cur.close()
+        conn.close()
 
-        if users_col.find_one({"email": email}):
-            return "User already exists"
+        # -------- SEND EMAIL --------
+        try:
+            send_email(
+                receiver,
+                f"Student Request: {predicted} Department",
+                f"""
+Name: {name}
+Student ID: {sid}
+Student Email: {student_email}
+Department: {dept}
+Year: {year}
 
-        user_id = users_col.insert_one({
-            "email": email,
-            "password": password
-        }).inserted_id
+------------------
+Request:
+{req_text}
+""",
+                student_email,
+            )
 
-        login_user(User(users_col.find_one({"_id": user_id})))
-        return redirect(url_for("index"))
+            flash("Request submitted and saved successfully!")
 
-    return render_template("register.html")
+        except Exception:
+            flash("Saved to DB, but email failed.")
 
-@app.route("/login", methods=["GET", "POST"])
-def login():
-    if request.method == "POST":
-        email = request.form["email"]
-        password = request.form["password"]
+        return redirect("/")
 
-        user = users_col.find_one({"email": email})
-        if user and check_password_hash(user["password"], password):
-            login_user(User(user))
-            return redirect(url_for("index"))
+    return render_template("index.html")
 
-        return "Invalid credentials"
-
-    return render_template("login.html")
-
-@app.route("/logout")
-@login_required
-def logout():
-    logout_user()
-    return redirect(url_for("login"))
-
-# -------- DEBUG ROUTE (TEMP) --------
-
-@app.route("/debug-insert")
-def debug_insert():
-    users_col.insert_one({"debug": "hello"})
-    return "Inserted test document"
-
+# ---------------- LOCAL RUN ----------------
 if __name__ == "__main__":
-    app.run()
+
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
