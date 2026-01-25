@@ -7,12 +7,12 @@ from flask_login import (
 from werkzeug.security import generate_password_hash, check_password_hash
 from pymongo import MongoClient
 from bson.objectid import ObjectId
+from datetime import datetime
 import os
 import pdfplumber
 import re
-from datetime import datetime
 
-# ---------------- APP CONFIG ----------------
+# ---------------- APP ----------------
 
 app = Flask(__name__)
 app.secret_key = "supersecretkey"
@@ -20,7 +20,14 @@ app.secret_key = "supersecretkey"
 # ---------------- MONGODB ----------------
 
 MONGO_URI = os.environ.get("MONGODB_URI")
-client = MongoClient(MONGO_URI)
+
+client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
+
+try:
+    client.admin.command("ping")
+    print("✅ MongoDB connection successful")
+except Exception as e:
+    print("❌ MongoDB connection failed:", e)
 
 db = client["resume_app"]
 users_col = db["users"]
@@ -45,9 +52,9 @@ def load_user(user_id):
 # ---------------- LOGIC ----------------
 
 SKILLS = [
-    "python", "java", "c++", "sql", "javascript", "html", "css",
-    "react", "node", "flask", "django",
-    "machine learning", "data science",
+    "python", "java", "c++", "sql", "javascript",
+    "html", "css", "react", "node", "flask",
+    "django", "machine learning", "data science",
     "aws", "docker", "git"
 ]
 
@@ -66,15 +73,7 @@ def analyze_resume_with_jd(resume_text, jd_text):
 
     score = int((len(overlap) / len(jd_skills)) * 100) if jd_skills else 0
 
-    tips = []
-    if missing:
-        tips.append("Add missing JD skills if applicable.")
-    if "project" not in resume_text.lower():
-        tips.append("Include a Projects section.")
-    if "intern" not in resume_text.lower():
-        tips.append("Mention internships.")
-
-    return score, overlap, missing, tips
+    return score, overlap, missing
 
 # ---------------- ROUTES ----------------
 
@@ -84,7 +83,6 @@ def index():
     score = None
     overlap = []
     missing = []
-    tips = []
 
     if request.method == "POST":
         file = request.files.get("resume")
@@ -96,7 +94,7 @@ def index():
                 for page in pdf.pages:
                     text += page.extract_text() or ""
 
-            score, overlap, missing, tips = analyze_resume_with_jd(text, jd_text)
+            score, overlap, missing = analyze_resume_with_jd(text, jd_text)
 
             analysis_col.insert_one({
                 "user_id": current_user.id,
@@ -108,8 +106,7 @@ def index():
         "index.html",
         score=score,
         overlap=overlap,
-        missing=missing,
-        tips=tips
+        missing=missing
     )
 
 @app.route("/history")
@@ -120,15 +117,7 @@ def history():
         .sort("created_at", -1)
     )
 
-    scores = [r["score"] for r in records]
-    dates = [r["created_at"].strftime("%d %b") for r in records]
-
-    return render_template(
-        "history.html",
-        analyses=records,
-        scores=scores,
-        dates=dates
-    )
+    return render_template("history.html", analyses=records)
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
@@ -169,6 +158,13 @@ def login():
 def logout():
     logout_user()
     return redirect(url_for("login"))
+
+# -------- DEBUG ROUTE (TEMP) --------
+
+@app.route("/debug-insert")
+def debug_insert():
+    users_col.insert_one({"debug": "hello"})
+    return "Inserted test document"
 
 if __name__ == "__main__":
     app.run()
