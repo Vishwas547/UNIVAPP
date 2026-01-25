@@ -1,7 +1,6 @@
 flask
+scikit-learn
+python-dotenv
+sendgrid
+mysql-connector-python
 gunicorn
-pdfplumber
-flask-login
-werkzeug
-pymongo
-dnspython
