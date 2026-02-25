@@ -3,8 +3,7 @@ from flask import Flask, render_template, request, flash, redirect
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.naive_bayes import MultinomialNB
 from dotenv import load_dotenv
-import mysql.connector
-
+from pymongo import MongoClient
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail
 
@@ -13,37 +12,19 @@ load_dotenv()
 
 SENDER_EMAIL = os.getenv("SENDER_EMAIL")
 SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY")
+MONGO_URI = os.getenv("MONGO_URI")
 
-MYSQL_HOST = os.getenv("MYSQL_HOST")
-MYSQL_PORT = os.getenv("MYSQL_PORT")
-MYSQL_USER = os.getenv("MYSQL_USER")
-MYSQL_PASSWORD = os.getenv("MYSQL_PASSWORD")
-MYSQL_DB = os.getenv("MYSQL_DB")
-
-if not all([
-    SENDER_EMAIL,
-    SENDGRID_API_KEY,
-    MYSQL_HOST,
-    MYSQL_PORT,
-    MYSQL_USER,
-    MYSQL_PASSWORD,
-    MYSQL_DB,
-]):
+if not all([SENDER_EMAIL, SENDGRID_API_KEY, MONGO_URI]):
     raise RuntimeError("Missing required env variables")
+
+# ---------------- MONGO CONNECTION ----------------
+client = MongoClient(MONGO_URI)
+db = client["universityDB"]
+requests_collection = db["requests"]
 
 # ---------------- FLASK ----------------
 app = Flask(__name__)
 app.secret_key = "secret123"
-
-# ---------------- DB CONNECTION ----------------
-def get_db():
-    return mysql.connector.connect(
-        host=MYSQL_HOST,
-        port=int(MYSQL_PORT),
-        user=MYSQL_USER,
-        password=MYSQL_PASSWORD,
-        database=MYSQL_DB,
-    )
 
 # ---------------- TRAIN DATA ----------------
 requests_data = [
@@ -87,13 +68,7 @@ department_emails = {
 
 # ---------------- CLEAN ----------------
 def clean_text(text):
-    ignore = [
-        "respected sir",
-        "respected madam",
-        "thank you",
-        "regards",
-        "yours sincerely",
-    ]
+    ignore = ["respected sir","respected madam","thank you","regards","yours sincerely"]
     text = text.lower()
     for i in ignore:
         text = text.replace(i, "")
@@ -110,35 +85,8 @@ def send_email(to_email, subject, body, reply_to):
     )
 
     message.reply_to = reply_to
-
     sg = SendGridAPIClient(SENDGRID_API_KEY)
     sg.send(message)
-
-# ---------------- CREATE TABLE ----------------
-def init_db():
-
-    conn = get_db()
-    cur = conn.cursor()
-
-    cur.execute("""
-    CREATE TABLE IF NOT EXISTS requests (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        name TEXT,
-        student_id TEXT,
-        student_email TEXT,
-        department TEXT,
-        year TEXT,
-        predicted_department TEXT,
-        request_text TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-    """)
-
-    conn.commit()
-    cur.close()
-    conn.close()
-
-init_db()
 
 # ---------------- ROUTE ----------------
 @app.route("/", methods=["GET","POST"])
@@ -163,21 +111,16 @@ def index():
 
         receiver = department_emails[predicted]
 
-        # -------- SAVE TO DB --------
-        conn = get_db()
-        cur = conn.cursor()
-
-        cur.execute("""
-        INSERT INTO requests
-        (name, student_id, student_email, department, year,
-         predicted_department, request_text)
-        VALUES (%s,%s,%s,%s,%s,%s,%s)
-        """,
-        (name, sid, student_email, dept, year, predicted, req_text))
-
-        conn.commit()
-        cur.close()
-        conn.close()
+        # -------- SAVE TO MONGO --------
+        requests_collection.insert_one({
+            "name": name,
+            "student_id": sid,
+            "student_email": student_email,
+            "department": dept,
+            "year": year,
+            "predicted_department": predicted,
+            "request_text": req_text
+        })
 
         # -------- SEND EMAIL --------
         try:
@@ -191,14 +134,13 @@ Student Email: {student_email}
 Department: {dept}
 Year: {year}
 
-------------------
 Request:
 {req_text}
 """,
                 student_email,
             )
 
-            flash("Request submitted and saved successfully!")
+            flash("Request submitted successfully!")
 
         except Exception:
             flash("Saved to DB, but email failed.")
@@ -207,7 +149,7 @@ Request:
 
     return render_template("index.html")
 
-# ---------------- LOCAL RUN ----------------
+# ---------------- RUN ----------------
 if __name__ == "__main__":
 
     port = int(os.environ.get("PORT", 5000))
