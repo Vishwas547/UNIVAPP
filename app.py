@@ -17,7 +17,7 @@ MONGO_URI = os.getenv("MONGO_URI")
 if not all([SENDER_EMAIL, SENDGRID_API_KEY, MONGO_URI]):
     raise RuntimeError("Missing required env variables")
 
-# ---------------- MONGO CONNECTION ----------------
+# ---------------- MONGO ----------------
 client = MongoClient(MONGO_URI)
 db = client["universityDB"]
 requests_collection = db["requests"]
@@ -137,32 +137,34 @@ model.fit(X, departments)
 
 # ---------------- EMAIL MAP ----------------
 department_emails = {
-    "Academic": "academic@university.edu",
-    "Accounts": "accounts@university.edu",
-    "Examination": "examcell@university.edu",
-    "Scholarship": "scholarship@university.edu",
-    "Hostel": "hostel@university.edu",
-    "HOD": "hod@university.edu",
-    "Principal": "principal@university.edu",
-    "TPO": "tpo@university.edu",
-    "Sports": "sports@university.edu",
-    "Library": "library@university.edu",
-    "Transport": "transport@university.edu",
-    "IT": "itsupport@university.edu",
-    "Grievance": "grievance@university.edu"
+    "Academic":"vishwasbekkanti@gmail.com",
+    "Accounts":"accounts@university.edu",
+    "Examination":"examcell@university.edu",
+    "Scholarship":"scholarship@university.edu",
+    "Hostel":"hostel@university.edu",
+    "HOD":"hod@university.edu",
+    "Principal":"principal@university.edu",
+    "TPO":"tpo@university.edu",
+    "Sports":"sports@university.edu",
+    "Library":"library@university.edu",
+    "Transport":"transport@university.edu",
+    "IT":"itsupport@university.edu",
+    "Grievance":"grievance@university.edu"
 }
 
-# ---------------- EMAIL SEND ----------------
 def send_email(to_email, subject, body, reply_to):
-    message = Mail(
-        from_email=SENDER_EMAIL,
-        to_emails=to_email,
-        subject=subject,
-        plain_text_content=body,
-    )
-    message.reply_to = reply_to
-    sg = SendGridAPIClient(SENDGRID_API_KEY)
-    sg.send(message)
+    try:
+        message = Mail(
+            from_email=SENDER_EMAIL,
+            to_emails=to_email,
+            subject=subject,
+            plain_text_content=body
+        )
+        message.reply_to = reply_to
+        sg = SendGridAPIClient(SENDGRID_API_KEY)
+        sg.send(message)
+    except Exception as e:
+        print("Email Error:", e)
 
 # ---------------- ROUTE ----------------
 @app.route("/", methods=["GET","POST"])
@@ -170,55 +172,54 @@ def index():
 
     if request.method == "POST":
 
-        name = request.form["name"]
-        sid = request.form["sid"]
-        student_email = request.form["email"]
-        dept = request.form["dept"]
-        year = request.form["year"]
-        req_text = request.form["request"]
-
-        if not all([name, sid, student_email, dept, year, req_text]):
-            flash("All fields are required")
-            return redirect("/")
-
-        vector = vectorizer.transform([req_text.lower()])
-        probabilities = model.predict_proba(vector)[0]
-
-        threshold = 0.15
-
-        matched_departments = [
-            model.classes_[i]
-            for i, prob in enumerate(probabilities)
-            if prob > threshold
-        ]
-
-        if not matched_departments:
-            matched_departments = [model.predict(vector)[0]]
-
-        receiver_emails = [
-            department_emails[d]
-            for d in matched_departments
-        ]
-
-        primary_department = matched_departments[0]
-
-        # SAVE TO MONGO
-        requests_collection.insert_one({
-            "name": name,
-            "student_id": sid,
-            "student_email": student_email,
-            "department": dept,
-            "year": year,
-            "predicted_departments": matched_departments,
-            "request_text": req_text
-        })
-
         try:
 
+            name = request.form["name"]
+            sid = request.form["sid"]
+            student_email = request.form["email"]
+            dept = request.form["dept"]
+            year = request.form["year"]
+            req_text = request.form["request"]
+
+            vector = vectorizer.transform([req_text.lower()])
+            probabilities = model.predict_proba(vector)[0]
+
+            threshold = 0.15
+
+            matched_departments = [
+                model.classes_[i]
+                for i, prob in enumerate(probabilities)
+                if prob > threshold
+            ]
+
+            if not matched_departments:
+                matched_departments = [model.predict(vector)[0]]
+
+            print("Matched Departments:", matched_departments)
+
+            receiver_emails = []
+
+            for d in matched_departments:
+                if d in department_emails:
+                    receiver_emails.append(department_emails[d])
+
+            primary_department = matched_departments[0]
+
+            # SAVE TO MONGO
+            requests_collection.insert_one({
+                "name": name,
+                "student_id": sid,
+                "student_email": student_email,
+                "department": dept,
+                "year": year,
+                "predicted_departments": matched_departments,
+                "request_text": req_text
+            })
+
             department_body = f"""
-Student Name: {name}
+Name: {name}
 Student ID: {sid}
-Student Email: {student_email}
+Email: {student_email}
 Department: {dept}
 Year: {year}
 
@@ -230,12 +231,10 @@ Routed To:
 """
 
             for email in receiver_emails:
-                send_email(
-                    email,
-                    "University Request - AI Auto Routed",
-                    department_body,
-                    student_email
-                )
+                send_email(email,
+                "University Request - AI Auto Routed",
+                department_body,
+                student_email)
 
             student_body = f"""
 Dear {name},
@@ -244,27 +243,22 @@ Your request:
 
 "{req_text}"
 
-has been successfully received.
+has been received.
 
-Please wait for 2 to 3 working days.
-
-For further clarification contact:
+Contact:
 {primary_department} Department
-
-University Administration
 """
 
-            send_email(
-                student_email,
-                "Request Received - Confirmation",
-                student_body,
-                SENDER_EMAIL
-            )
+            send_email(student_email,
+            "Request Received",
+            student_body,
+            SENDER_EMAIL)
 
-            flash("Request submitted and routed successfully!")
+            flash("Request submitted successfully!")
 
-        except Exception:
-            flash("Saved to DB, but email failed.")
+        except Exception as e:
+            print("MAIN ERROR:", e)
+            flash("Saved but email failed.")
 
         return redirect("/")
 
