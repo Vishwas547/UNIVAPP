@@ -1,210 +1,195 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>University AI Request System</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta charset="UTF-8">
+<title>Intelligent Request Routing and Management System</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <!-- Google Font -->
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
 
-  <style>
-    * {
-      box-sizing: border-box;
-      font-family: 'Inter', sans-serif;
-    }
+body {
+  margin: 0;
+  background: #f3f4f7;
+  font-family: Arial, sans-serif;
+}
 
-    body {
-      margin: 0;
-      min-height: 100vh;
-      background: linear-gradient(135deg, #ff512f, #dd2476, #8134af);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 44px;
-    }
+/* Main Container */
+.form-container {
+  width: 800px;
+  margin: 40px auto;
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+  overflow: hidden;
+}
 
-    .card {
-      background: linear-gradient(180deg, #ffffff, #fafafa);
-      width: 100%;
-      max-width: 560px;
-      border-radius: 34px;
-      padding: 42px 44px;
-      box-shadow:
-        0 35px 90px rgba(0,0,0,0.15),
-        0 15px 35px rgba(0,0,0,0.10);
-      backdrop-filter: blur(14px);
-      animation: popIn 0.6s ease;
-    }
+/* Header with Gradient */
+.header {
+  background: linear-gradient(135deg, #6a11cb, #d4145a);
+  color: white;
+  padding: 18px;
+  text-align: center;
+}
 
-    @keyframes popIn {
-      from { opacity: 0; transform: scale(0.96) translateY(18px); }
-      to { opacity: 1; transform: scale(1) translateY(0); }
-    }
+.header h2 {
+  margin: 0;
+  letter-spacing: 1px;
+}
 
-    h2 {
-      text-align: center;
-      margin-bottom: 30px;
-      font-size: 28px;
-      font-weight: 700;
-      background: linear-gradient(135deg, #ff512f, #dd2476, #8134af);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
+/* Section Title */
+.section-title {
+  background: #fafafa;
+  padding: 12px 20px;
+  font-weight: bold;
+  border-bottom: 1px solid #ddd;
+}
 
-    .form-group {
-      margin-bottom: 18px;
-    }
+/* Form Body */
+.form-body {
+  padding: 20px;
+}
 
-    label {
-      display: block;
-      font-size: 13px;
-      margin-bottom: 6px;
-      color: #555;
-      font-weight: 600;
-    }
+/* Form Row */
+.form-row {
+  display: flex;
+  margin-bottom: 18px;
+  align-items: center;
+}
 
-    input, textarea {
-      width: 100%;
-      padding: 13px 16px;
-      border-radius: 16px;
-      border: 1px solid #e5e5e5;
-      outline: none;
-      font-size: 15px;
-      transition: 0.25s ease;
-      background: #fafafa;
-    }
+.form-row label {
+  width: 200px;
+  font-weight: bold;
+}
 
-    input:focus, textarea:focus {
-      border-color: #dd2476;
-      background: white;
-      box-shadow: 0 0 0 3px rgba(221,36,118,0.18);
-    }
+/* Thick Box Inputs */
+.form-row input {
+  flex: 1;
+  padding: 10px;
+  border: 2px solid #bbb;
+  border-radius: 6px;
+  font-size: 14px;
+  outline: none;
+  transition: 0.3s;
+}
 
-    textarea { resize: none; }
+.form-row input:focus {
+  border: 2px solid #6a11cb;
+  box-shadow: 0 0 6px rgba(106,17,203,0.4);
+}
 
-    button {
-      width: 100%;
-      padding: 15px;
-      margin-top: 18px;
-      background: linear-gradient(135deg, #ff512f, #dd2476, #8134af);
-      background-size: 200% 200%;
-      color: white;
-      border: none;
-      border-radius: 22px;
-      font-size: 17px;
-      font-weight: 700;
-      cursor: pointer;
-      transition: 0.25s ease;
-    }
+/* TEXTAREA STYLE */
+.textarea-row textarea {
+  flex: 1;
+  height: 120px;
+  padding: 10px;
+  border: 2px solid #bbb;
+  border-radius: 6px;
+  font-size: 14px;
+  outline: none;
+  resize: vertical;
+  transition: 0.3s;
+}
 
-    button:hover {
-      background-position: right center;
-      transform: translateY(-2px);
-      box-shadow: 0 12px 26px rgba(0,0,0,0.25);
-    }
+.textarea-row textarea:focus {
+  border: 2px solid #d4145a;
+  box-shadow: 0 0 6px rgba(212,20,90,0.4);
+}
 
-    .flash {
-      text-align: center;
-      margin-top: 18px;
-      font-weight: 600;
-      color: #dd2476;
-    }
+/* Button */
+.submit-section {
+  text-align: center;
+  padding: 20px;
+}
 
-    footer {
-      text-align: center;
-      margin-top: 24px;
-      font-size: 12px;
-      color: #888;
-    }
+button {
+  padding: 10px 30px;
+  background: linear-gradient(135deg, #6a11cb, #d4145a);
+  color: white;
+  border: none;
+  cursor: pointer;
+  font-size: 15px;
+  border-radius: 5px;
+  transition: 0.3s;
+}
 
-    /* ---------------- RESPONSIVE BREAKPOINTS ---------------- */
+button:hover {
+  opacity: 0.9;
+}
 
-    /* Phones */
-    @media (max-width: 600px) {
-      body { padding: 18px; }
+/* Responsive */
+@media(max-width:768px){
 
-      .card {
-        padding: 26px 22px;
-        border-radius: 22px;
-      }
+.form-container{
+  width: 95%;
+}
 
-      h2 { font-size: 22px; }
+.form-row{
+  flex-direction: column;
+  align-items: flex-start;
+}
 
-      input, textarea { font-size: 14px; }
+.form-row label{
+  width: 100%;
+  margin-bottom: 5px;
+}
 
-      button { font-size: 15px; }
-    }
+}
 
-    /* Tablets / iPads */
-    @media (min-width: 601px) and (max-width: 1024px) {
-      .card {
-        max-width: 620px;
-        padding: 38px 36px;
-      }
+</style>
 
-      h2 { font-size: 26px; }
-    }
-
-    /* Large laptops / desktops */
-    @media (min-width: 1400px) {
-      .card {
-        max-width: 680px;
-        padding: 46px 48px;
-      }
-
-      h2 { font-size: 30px; }
-    }
-  </style>
 </head>
 
 <body>
 
-  <div class="card">
-    <h2>Intelligent Request Routing and Management System</h2>
+<div class="form-container">
 
-    <form method="POST">
+<div class="header">
+<h2>Intelligent Request Routing and Management System</h2>
+</div>
 
-      <div class="form-group">
-        <label>Name</label>
-        <input name="name" placeholder="Enter your full name" required />
-      </div>
+<div class="section-title">
+Student Request Details
+</div>
 
-      <div class="form-group">
-        <label>Student ID</label>
-        <input name="sid" placeholder="Enter student ID" required />
-      </div>
+<form method="POST" class="form-body">
 
-      <div class="form-group">
-        <label>Student Email</label>
-        <input type="email" name="email" placeholder="Enter your email" required />
-      </div>
+<div class="form-row">
+<label>Name :</label>
+<input type="text" name="name" required>
+</div>
 
-      <div class="form-group">
-        <label>Department</label>
-        <input name="dept" placeholder="Your department" required />
-      </div>
+<div class="form-row">
+<label>Student ID :</label>
+<input type="text" name="sid" required>
+</div>
 
-      <div class="form-group">
-        <label>Class / Year</label>
-        <input name="year" placeholder="Example: 3rd Year CSE" required />
-      </div>
+<div class="form-row">
+<label>Student Email :</label>
+<input type="email" name="email" required>
+</div>
 
-      <div class="form-group">
-        <label>Request</label>
-        <textarea name="request" rows="5" placeholder="Describe your issue clearly..." required></textarea>
-      </div>
+<div class="form-row">
+<label>Department :</label>
+<input type="text" name="dept" required>
+</div>
 
-      <button type="submit">🚀 Submit Request</button>
+<div class="form-row">
+<label>Class / Year :</label>
+<input type="text" name="year" required>
+</div>
 
-    </form>
+<div class="form-row textarea-row">
+<label>Request Description :</label>
+<textarea name="request" placeholder="Describe your issue clearly..." required></textarea>
+</div>
 
-    
+<div class="submit-section">
+<button type="submit">Submit Request</button>
+</div>
 
-    <footer>
-      Intelligent Request Routing and Management System
-    </footer>
-  </div>
+</form>
+
+</div>
 
 </body>
 </html>
