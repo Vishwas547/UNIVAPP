@@ -57,19 +57,10 @@ body {
   border: 2px solid #bbb;
   border-radius: 6px;
   font-size: 14px;
-  outline: none;
-  transition: 0.3s;
-}
-
-.form-row input:focus,
-.form-row textarea:focus {
-  border: 2px solid #6a11cb;
-  box-shadow: 0 0 6px rgba(106,17,203,0.4);
 }
 
 .textarea-row textarea {
   height: 120px;
-  resize: vertical;
 }
 
 .submit-section {
@@ -87,27 +78,15 @@ button {
   border-radius: 5px;
 }
 
-button:hover {
-  opacity: 0.9;
-}
-
 .success-box {
-  display: none;
-  margin-top: 25px;
   text-align: center;
+  margin-bottom: 20px;
 }
 
 .tick-icon {
   width: 80px;
   height: 80px;
   margin: auto;
-}
-
-.success-text {
-  color: #28a745;
-  font-size: 18px;
-  font-weight: bold;
-  margin-top: 15px;
 }
 </style>
 </head>
@@ -124,92 +103,59 @@ button:hover {
 Student Request Details
 </div>
 
-<form id="requestForm" class="form-body">
+<!-- SUCCESS MESSAGE FROM FLASK -->
+{% with messages = get_flashed_messages() %}
+  {% if messages %}
+    <div class="success-box">
+      <svg class="tick-icon" viewBox="0 0 52 52">
+        <circle cx="26" cy="26" r="25" fill="#28a745"/>
+        <path fill="none" stroke="white" stroke-width="5"
+              d="M14 27 L22 35 L38 18"/>
+      </svg>
+      <h3 style="color:#28a745;">{{ messages[0] }}</h3>
+    </div>
+  {% endif %}
+{% endwith %}
+
+<form method="POST" class="form-body">
 
 <div class="form-row">
 <label>Name :</label>
-<input type="text" id="name">
+<input type="text" name="name">
 </div>
 
 <div class="form-row">
 <label>Student ID :</label>
-<input type="text" id="sid">
+<input type="text" name="sid">
 </div>
 
 <div class="form-row">
 <label>Student Email :</label>
-<input type="email" id="email">
+<input type="email" name="email">
 </div>
 
 <div class="form-row">
 <label>Department :</label>
-<input type="text" id="dept">
+<input type="text" name="dept">
 </div>
 
 <div class="form-row">
 <label>Class / Year :</label>
-<input type="text" id="year">
+<input type="text" name="year">
 </div>
 
 <div class="form-row textarea-row">
 <label>Request Description :</label>
-<textarea id="request"></textarea>
+<textarea name="request"></textarea>
 </div>
 
 <div class="submit-section">
 <button type="submit">Submit</button>
-
-<div class="success-box" id="successBox">
-
-<svg class="tick-icon" viewBox="0 0 52 52">
-  <circle cx="26" cy="26" r="25" fill="#28a745"/>
-  <path fill="none" stroke="white" stroke-width="5"
-        d="M14 27 L22 35 L38 18"/>
-</svg>
-
-<div class="success-text">
-Your request has been submitted successfully
-</div>
-
-<br>
-<button type="button" onclick="goToNextPage()">Done</button>
-
-</div>
 </div>
 
 </form>
+
 </div>
-
-<script>
-document.getElementById("requestForm").addEventListener("submit", function(e){
-    e.preventDefault();
-
-    let name = document.getElementById("name").value.trim();
-    let sid = document.getElementById("sid").value.trim();
-    let email = document.getElementById("email").value.trim();
-    let dept = document.getElementById("dept").value.trim();
-    let year = document.getElementById("year").value.trim();
-    let request = document.getElementById("request").value.trim();
-
-    if(name === ""){ alert("Please enter your Name"); return; }
-    if(sid === ""){ alert("Please enter your Student ID"); return; }
-    if(email === ""){ alert("Please enter your Email"); return; }
-    if(dept === ""){ alert("Please enter your Department"); return; }
-    if(year === ""){ alert("Please enter your Class / Year"); return; }
-    if(request === ""){ alert("Please describe your Request"); return; }
-
-    document.querySelectorAll(".form-row").forEach(row => {
-        row.style.display = "none";
-    });
-
-    document.querySelector("button[type='submit']").style.display = "none";
-    document.getElementById("successBox").style.display = "block";
-});
-
-function goToNextPage(){
-    window.location.href = "done.html";
-}
-</script>
 
 </body>
 </html>
