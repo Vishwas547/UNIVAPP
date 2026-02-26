@@ -6,14 +6,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
-
 body {
   margin: 0;
   background: #f3f4f7;
   font-family: Arial, sans-serif;
 }
 
-/* Main Container */
 .form-container {
   width: 800px;
   margin: 40px auto;
@@ -23,7 +21,6 @@ body {
   overflow: hidden;
 }
 
-/* Header with Gradient */
 .header {
   background: linear-gradient(135deg, #6a11cb, #d4145a);
   color: white;
@@ -31,12 +28,6 @@ body {
   text-align: center;
 }
 
-.header h2 {
-  margin: 0;
-  letter-spacing: 1px;
-}
-
-/* Section Title */
 .section-title {
   background: #fafafa;
   padding: 12px 20px;
@@ -44,12 +35,10 @@ body {
   border-bottom: 1px solid #ddd;
 }
 
-/* Form Body */
 .form-body {
   padding: 20px;
 }
 
-/* Form Row */
 .form-row {
   display: flex;
   margin-bottom: 18px;
@@ -61,8 +50,8 @@ body {
   font-weight: bold;
 }
 
-/* Thick Box Inputs */
-.form-row input {
+.form-row input,
+.form-row textarea {
   flex: 1;
   padding: 10px;
   border: 2px solid #bbb;
@@ -72,30 +61,17 @@ body {
   transition: 0.3s;
 }
 
-.form-row input:focus {
+.form-row input:focus,
+.form-row textarea:focus {
   border: 2px solid #6a11cb;
   box-shadow: 0 0 6px rgba(106,17,203,0.4);
 }
 
-/* TEXTAREA STYLE */
 .textarea-row textarea {
-  flex: 1;
   height: 120px;
-  padding: 10px;
-  border: 2px solid #bbb;
-  border-radius: 6px;
-  font-size: 14px;
-  outline: none;
   resize: vertical;
-  transition: 0.3s;
 }
 
-.textarea-row textarea:focus {
-  border: 2px solid #d4145a;
-  box-shadow: 0 0 6px rgba(212,20,90,0.4);
-}
-
-/* Button */
 .submit-section {
   text-align: center;
   padding: 20px;
@@ -109,34 +85,31 @@ button {
   cursor: pointer;
   font-size: 15px;
   border-radius: 5px;
-  transition: 0.3s;
 }
 
 button:hover {
   opacity: 0.9;
 }
 
-/* Responsive */
-@media(max-width:768px){
-
-.form-container{
-  width: 95%;
+.success-box {
+  display: none;
+  margin-top: 25px;
+  text-align: center;
 }
 
-.form-row{
-  flex-direction: column;
-  align-items: flex-start;
+.tick-icon {
+  width: 80px;
+  height: 80px;
+  margin: auto;
 }
 
-.form-row label{
-  width: 100%;
-  margin-bottom: 5px;
+.success-text {
+  color: #28a745;
+  font-size: 18px;
+  font-weight: bold;
+  margin-top: 15px;
 }
-
-}
-
 </style>
-
 </head>
 
 <body>
@@ -151,45 +124,92 @@ button:hover {
 Student Request Details
 </div>
 
-<form method="POST" class="form-body">
+<form id="requestForm" class="form-body">
 
 <div class="form-row">
 <label>Name :</label>
-<input type="text" name="name" required>
+<input type="text" id="name">
 </div>
 
 <div class="form-row">
 <label>Student ID :</label>
-<input type="text" name="sid" required>
+<input type="text" id="sid">
 </div>
 
 <div class="form-row">
 <label>Student Email :</label>
-<input type="email" name="email" required>
+<input type="email" id="email">
 </div>
 
 <div class="form-row">
 <label>Department :</label>
-<input type="text" name="dept" required>
+<input type="text" id="dept">
 </div>
 
 <div class="form-row">
 <label>Class / Year :</label>
-<input type="text" name="year" required>
+<input type="text" id="year">
 </div>
 
 <div class="form-row textarea-row">
 <label>Request Description :</label>
-<textarea name="request" placeholder="Describe your issue clearly..." required></textarea>
+<textarea id="request"></textarea>
 </div>
 
 <div class="submit-section">
-<button type="submit">Submit Request</button>
+<button type="submit">Submit</button>
+
+<div class="success-box" id="successBox">
+
+<svg class="tick-icon" viewBox="0 0 52 52">
+  <circle cx="26" cy="26" r="25" fill="#28a745"/>
+  <path fill="none" stroke="white" stroke-width="5"
+        d="M14 27 L22 35 L38 18"/>
+</svg>
+
+<div class="success-text">
+Your request has been submitted successfully
+</div>
+
+<br>
+<button type="button" onclick="goToNextPage()">Done</button>
+
+</div>
 </div>
 
 </form>
-
 </div>
+
+<script>
+document.getElementById("requestForm").addEventListener("submit", function(e){
+    e.preventDefault();
+
+    let name = document.getElementById("name").value.trim();
+    let sid = document.getElementById("sid").value.trim();
+    let email = document.getElementById("email").value.trim();
+    let dept = document.getElementById("dept").value.trim();
+    let year = document.getElementById("year").value.trim();
+    let request = document.getElementById("request").value.trim();
+
+    if(name === ""){ alert("Please enter your Name"); return; }
+    if(sid === ""){ alert("Please enter your Student ID"); return; }
+    if(email === ""){ alert("Please enter your Email"); return; }
+    if(dept === ""){ alert("Please enter your Department"); return; }
+    if(year === ""){ alert("Please enter your Class / Year"); return; }
+    if(request === ""){ alert("Please describe your Request"); return; }
+
+    document.querySelectorAll(".form-row").forEach(row => {
+        row.style.display = "none";
+    });
+
+    document.querySelector("button[type='submit']").style.display = "none";
+    document.getElementById("successBox").style.display = "block";
+});
+
+function goToNextPage(){
+    window.location.href = "done.html";
+}
+</script>
 
 </body>
 </html>
