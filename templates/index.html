@@ -6,12 +6,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
+
 body {
   margin: 0;
   background: #f3f4f7;
   font-family: Arial, sans-serif;
 }
 
+/* Main Container */
 .form-container {
   width: 800px;
   margin: 40px auto;
@@ -21,6 +23,7 @@ body {
   overflow: hidden;
 }
 
+/* Header with Gradient */
 .header {
   background: linear-gradient(135deg, #6a11cb, #d4145a);
   color: white;
@@ -28,6 +31,12 @@ body {
   text-align: center;
 }
 
+.header h2 {
+  margin: 0;
+  letter-spacing: 1px;
+}
+
+/* Section Title */
 .section-title {
   background: #fafafa;
   padding: 12px 20px;
@@ -35,10 +44,12 @@ body {
   border-bottom: 1px solid #ddd;
 }
 
+/* Form Body */
 .form-body {
   padding: 20px;
 }
 
+/* Form Row */
 .form-row {
   display: flex;
   margin-bottom: 18px;
@@ -50,19 +61,41 @@ body {
   font-weight: bold;
 }
 
-.form-row input,
-.form-row textarea {
+/* Thick Box Inputs */
+.form-row input {
   flex: 1;
   padding: 10px;
   border: 2px solid #bbb;
   border-radius: 6px;
   font-size: 14px;
+  outline: none;
+  transition: 0.3s;
 }
 
+.form-row input:focus {
+  border: 2px solid #6a11cb;
+  box-shadow: 0 0 6px rgba(106,17,203,0.4);
+}
+
+/* TEXTAREA STYLE */
 .textarea-row textarea {
+  flex: 1;
   height: 120px;
+  padding: 10px;
+  border: 2px solid #bbb;
+  border-radius: 6px;
+  font-size: 14px;
+  outline: none;
+  resize: vertical;
+  transition: 0.3s;
 }
 
+.textarea-row textarea:focus {
+  border: 2px solid #d4145a;
+  box-shadow: 0 0 6px rgba(212,20,90,0.4);
+}
+
+/* Button */
 .submit-section {
   text-align: center;
   padding: 20px;
@@ -76,19 +109,34 @@ button {
   cursor: pointer;
   font-size: 15px;
   border-radius: 5px;
+  transition: 0.3s;
 }
 
-.success-box {
-  text-align: center;
-  margin-bottom: 20px;
+button:hover {
+  opacity: 0.9;
 }
 
-.tick-icon {
-  width: 80px;
-  height: 80px;
-  margin: auto;
+/* Responsive */
+@media(max-width:768px){
+
+.form-container{
+  width: 95%;
 }
+
+.form-row{
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.form-row label{
+  width: 100%;
+  margin-bottom: 5px;
+}
+
+}
+
 </style>
+
 </head>
 
 <body>
@@ -103,54 +151,40 @@ button {
 Student Request Details
 </div>
 
-<!-- SUCCESS MESSAGE FROM FLASK -->
-{% with messages = get_flashed_messages() %}
-  {% if messages %}
-    <div class="success-box">
-      <svg class="tick-icon" viewBox="0 0 52 52">
-        <circle cx="26" cy="26" r="25" fill="#28a745"/>
-        <path fill="none" stroke="white" stroke-width="5"
-              d="M14 27 L22 35 L38 18"/>
-      </svg>
-      <h3 style="color:#28a745;">{{ messages[0] }}</h3>
-    </div>
-  {% endif %}
-{% endwith %}
-
 <form method="POST" class="form-body">
 
 <div class="form-row">
 <label>Name :</label>
-<input type="text" name="name">
+<input type="text" name="name" required>
 </div>
 
 <div class="form-row">
 <label>Student ID :</label>
-<input type="text" name="sid">
+<input type="text" name="sid" required>
 </div>
 
 <div class="form-row">
 <label>Student Email :</label>
-<input type="email" name="email">
+<input type="email" name="email" required>
 </div>
 
 <div class="form-row">
 <label>Department :</label>
-<input type="text" name="dept">
+<input type="text" name="dept" required>
 </div>
 
 <div class="form-row">
 <label>Class / Year :</label>
-<input type="text" name="year">
+<input type="text" name="year" required>
 </div>
 
 <div class="form-row textarea-row">
 <label>Request Description :</label>
-<textarea name="request"></textarea>
+<textarea name="request" placeholder="Describe your issue clearly..." required></textarea>
 </div>
 
 <div class="submit-section">
-<button type="submit">Submit</button>
+<button type="submit">Submit Request</button>
 </div>
 
 </form>
