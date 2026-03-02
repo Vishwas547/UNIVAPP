@@ -1,271 +1,175 @@
-import os
-from flask import Flask, render_template, request, flash, redirect
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.naive_bayes import MultinomialNB
-from dotenv import load_dotenv
+
+from flask import Flask, render_template, request, redirect, url_for
+from flask_login import (
+    LoginManager, UserMixin,
+    login_user, login_required,
+    logout_user, current_user
+)
+from werkzeug.security import generate_password_hash, check_password_hash
 from pymongo import MongoClient
-from sendgrid import SendGridAPIClient
-from sendgrid.helpers.mail import Mail
+from bson.objectid import ObjectId
+import os
+import pdfplumber
+import re
+from datetime import datetime
 
-# ---------------- LOAD ENV ----------------
-load_dotenv()
+# ---------------- APP CONFIG ----------------
 
-SENDER_EMAIL = os.getenv("SENDER_EMAIL")
-SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY")
-MONGO_URI = os.getenv("MONGO_URI")
-
-if not all([SENDER_EMAIL, SENDGRID_API_KEY, MONGO_URI]):
-    raise RuntimeError("Missing required env variables")
-
-# ---------------- MONGO ----------------
-client = MongoClient(MONGO_URI)
-db = client["universityDB"]
-requests_collection = db["requests"]
-
-# ---------------- FLASK ----------------
 app = Flask(__name__)
-app.secret_key = "secret123"
+app.secret_key = "supersecretkey"
 
-# ---------------- TRAIN DATA ----------------
-requests_data = [
-"leave permission","medical leave","attendance shortage","bonafide certificate",
-"study certificate","transfer certificate","migration certificate",
-"course completion certificate","internship permission letter",
-"project approval academic","elective subject change",
-"semester registration issue","section change request",
-"academic calendar clarification","id card issue",
+# ---------------- MONGODB ----------------
 
-"tuition fee payment issue","fee receipt not generated","refund request",
-"caution deposit refund","excess fee paid","fine payment issue",
-"payment gateway failure","fee structure clarification",
-"installment request","scholarship adjustment in fees",
+MONGO_URI = os.environ.get("MONGODB_URI")
+client = MongoClient(MONGO_URI)
 
-"hall ticket not generated","wrong subject in hall ticket","exam fee issue",
-"revaluation request","photocopy of answer script",
-"supplementary exam registration","improvement exam",
-"internal marks correction","grade card correction",
-"backlog registration issue",
+db = client["resume_app"]
+users_col = db["users"]
+analysis_col = db["analysis"]
 
-"scholarship not credited","nsp portal issue","minority scholarship",
-"post matric scholarship","upload document correction",
-"income certificate issue","bank account update",
-"aadhaar mismatch","scholarship renewal problem",
+# ---------------- LOGIN ----------------
 
-"room allocation issue","room change request","water problem hostel",
-"electricity issue hostel","wifi issue hostel",
-"mess quality complaint","mess fee payment issue",
-"furniture damage","cleaning issue hostel",
-"security complaint hostel","gate pass permission",
+login_manager = LoginManager()
+login_manager.login_view = "login"
+login_manager.init_app(app)
 
-"project topic approval","internship approval","lab permission",
-"attendance condonation","faculty complaint",
-"internal marks discussion","subject doubt clarification",
-"research paper submission","recommendation letter",
-"department event permission",
+class User(UserMixin):
+    def __init__(self, user):
+        self.id = str(user["_id"])
+        self.email = user["email"]
 
-"serious grievance","faculty misconduct","harassment complaint",
-"policy complaint","disciplinary issue",
-"appeal against suspension","overall college complaint",
+@login_manager.user_loader
+def load_user(user_id):
+    user = users_col.find_one({"_id": ObjectId(user_id)})
+    return User(user) if user else None
 
-"placement registration issue","resume submission","internship opportunity",
-"company drive details","offer letter issue",
-"training program enrollment","aptitude training request",
-"mock interview request","noc for internship",
+# ---------------- LOGIC ----------------
 
-"sports certificate","tournament participation",
-"sports equipment issue","ground booking",
-"sports quota certificate","attendance for sports",
-"sports scholarship",
-
-"library fine issue","book not available","lost book",
-"library id issue","digital library access","thesis submission",
-
-"bus pass issue","route change transport","bus timing issue",
-"transport fee payment","new transport request",
-
-"erp login issue","portal password reset",
-"wifi campus issue","email id problem","software lab issue",
-
-"ragging complaint","discrimination complaint",
-"academic bias complaint"
+SKILLS = [
+    "python", "java", "c++", "sql", "javascript", "html", "css",
+    "react", "node", "flask", "django",
+    "machine learning", "data science",
+    "aws", "docker", "git"
 ]
 
-departments = [
-"Academic","Academic","Academic","Academic","Academic","Academic",
-"Academic","Academic","Academic","Academic","Academic","Academic",
-"Academic","Academic","Academic",
+def clean_text(text):
+    return re.sub(r"\s+", " ", text.lower())
 
-"Accounts","Accounts","Accounts","Accounts","Accounts",
-"Accounts","Accounts","Accounts","Accounts","Accounts",
+def extract_skills(text):
+    return [s for s in SKILLS if s in clean_text(text)]
 
-"Examination","Examination","Examination","Examination",
-"Examination","Examination","Examination","Examination",
-"Examination","Examination",
+def analyze_resume_with_jd(resume_text, jd_text):
+    resume_skills = extract_skills(resume_text)
+    jd_skills = extract_skills(jd_text)
 
-"Scholarship","Scholarship","Scholarship","Scholarship",
-"Scholarship","Scholarship","Scholarship","Scholarship","Scholarship",
+    overlap = list(set(resume_skills) & set(jd_skills))
+    missing = list(set(jd_skills) - set(resume_skills))
 
-"Hostel","Hostel","Hostel","Hostel","Hostel",
-"Hostel","Hostel","Hostel","Hostel","Hostel","Hostel",
+    score = int((len(overlap) / len(jd_skills)) * 100) if jd_skills else 0
 
-"HOD","HOD","HOD","HOD","HOD",
-"HOD","HOD","HOD","HOD","HOD",
+    tips = []
+    if missing:
+        tips.append("Add missing JD skills if applicable.")
+    if "project" not in resume_text.lower():
+        tips.append("Include a Projects section.")
+    if "intern" not in resume_text.lower():
+        tips.append("Mention internships.")
 
-"Principal","Principal","Principal","Principal",
-"Principal","Principal","Principal",
+    return score, overlap, missing, tips
 
-"TPO","TPO","TPO","TPO","TPO",
-"TPO","TPO","TPO","TPO",
+# ---------------- ROUTES ----------------
 
-"Sports","Sports","Sports","Sports",
-"Sports","Sports","Sports",
-
-"Library","Library","Library","Library","Library","Library",
-
-"Transport","Transport","Transport","Transport","Transport",
-
-"IT","IT","IT","IT","IT",
-
-"Grievance","Grievance","Grievance"
-]
-
-vectorizer = TfidfVectorizer(stop_words="english", ngram_range=(1,2))
-X = vectorizer.fit_transform(requests_data)
-
-model = MultinomialNB()
-model.fit(X, departments)
-
-# ---------------- EMAIL MAP ----------------
-department_emails = {
-    "Academic":"vishwasbekkanti@gmail.com",
-    "Accounts":"accounts@university.edu",
-    "Examination":"examcell@university.edu",
-    "Scholarship":"scholarship@university.edu",
-    "Hostel":"hostel@university.edu",
-    "HOD":"hod@university.edu",
-    "Principal":"principal@university.edu",
-    "TPO":"tpo@university.edu",
-    "Sports":"sports@university.edu",
-    "Library":"library@university.edu",
-    "Transport":"transport@university.edu",
-    "IT":"itsupport@university.edu",
-    "Grievance":"grievance@university.edu"
-}
-
-def send_email(to_email, subject, body, reply_to):
-    try:
-        message = Mail(
-            from_email=SENDER_EMAIL,
-            to_emails=to_email,
-            subject=subject,
-            plain_text_content=body
-        )
-        message.reply_to = reply_to
-        sg = SendGridAPIClient(SENDGRID_API_KEY)
-        sg.send(message)
-    except Exception as e:
-        print("Email Error:", e)
-
-# ---------------- ROUTE ----------------
-@app.route("/", methods=["GET","POST"])
+@app.route("/", methods=["GET", "POST"])
+@login_required
 def index():
+    score = None
+    overlap = []
+    missing = []
+    tips = []
 
     if request.method == "POST":
+        file = request.files.get("resume")
+        jd_text = request.form.get("job_description", "")
 
-        try:
+        if file:
+            text = ""
+            with pdfplumber.open(file) as pdf:
+                for page in pdf.pages:
+                    text += page.extract_text() or ""
 
-            name = request.form["name"]
-            sid = request.form["sid"]
-            student_email = request.form["email"]
-            dept = request.form["dept"]
-            year = request.form["year"]
-            req_text = request.form["request"]
+            score, overlap, missing, tips = analyze_resume_with_jd(text, jd_text)
 
-            vector = vectorizer.transform([req_text.lower()])
-            probabilities = model.predict_proba(vector)[0]
-
-            threshold = 0.15
-
-            matched_departments = [
-                model.classes_[i]
-                for i, prob in enumerate(probabilities)
-                if prob > threshold
-            ]
-
-            if not matched_departments:
-                matched_departments = [model.predict(vector)[0]]
-
-            print("Matched Departments:", matched_departments)
-
-            receiver_emails = []
-
-            for d in matched_departments:
-                if d in department_emails:
-                    receiver_emails.append(department_emails[d])
-
-            primary_department = matched_departments[0]
-
-            # SAVE TO MONGO
-            requests_collection.insert_one({
-                "name": name,
-                "student_id": sid,
-                "student_email": student_email,
-                "department": dept,
-                "year": year,
-                "predicted_departments": matched_departments,
-                "request_text": req_text
+            analysis_col.insert_one({
+                "user_id": current_user.id,
+                "score": score,
+                "created_at": datetime.utcnow()
             })
 
-            department_body = f"""
-Name: {name}
-Student ID: {sid}
-Email: {student_email}
-Department: {dept}
-Year: {year}
+    return render_template(
+        "index.html",
+        score=score,
+        overlap=overlap,
+        missing=missing,
+        tips=tips
+    )
 
-Request:
-{req_text}
+@app.route("/history")
+@login_required
+def history():
+    records = list(
+        analysis_col.find({"user_id": current_user.id})
+        .sort("created_at", -1)
+    )
 
-Routed To:
-{', '.join(matched_departments)}
-"""
+    scores = [r["score"] for r in records]
+    dates = [r["created_at"].strftime("%d %b") for r in records]
 
-            for email in receiver_emails:
-                send_email(email,
-                "University Request - AI Auto Routed",
-                department_body,
-                student_email)
+    return render_template(
+        "history.html",
+        analyses=records,
+        scores=scores,
+        dates=dates
+    )
 
-            student_body = f"""
-Dear {name},
+@app.route("/register", methods=["GET", "POST"])
+def register():
+    if request.method == "POST":
+        email = request.form["email"]
+        password = generate_password_hash(request.form["password"])
 
-Your request:
+        if users_col.find_one({"email": email}):
+            return "User already exists"
 
-"{req_text}"
+        user_id = users_col.insert_one({
+            "email": email,
+            "password": password
+        }).inserted_id
 
-has been received.
+        login_user(User(users_col.find_one({"_id": user_id})))
+        return redirect(url_for("index"))
 
-Contact:
-{primary_department} Department
-"""
+    return render_template("register.html")
 
-            send_email(student_email,
-            "Request Received",
-            student_body,
-            SENDER_EMAIL)
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        email = request.form["email"]
+        password = request.form["password"]
 
-            flash("Request submitted successfully!")
+        user = users_col.find_one({"email": email})
+        if user and check_password_hash(user["password"], password):
+            login_user(User(user))
+            return redirect(url_for("index"))
 
-        except Exception as e:
-            print("MAIN ERROR:", e)
-            flash("Saved but email failed.")
+        return "Invalid credentials"
 
-        return redirect("/")
+    return render_template("login.html")
 
-    return render_template("index.html")
+@app.route("/logout")
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for("login"))
 
-# ---------------- RUN ----------------
 if __name__ == "__main__":
-
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    app.run()
