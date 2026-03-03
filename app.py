@@ -1,4 +1,5 @@
 import os
+import threading
 from flask import Flask, render_template, request, flash, redirect
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.naive_bayes import MultinomialNB
@@ -17,6 +18,9 @@ MONGO_URI = os.getenv("MONGO_URI")
 if not all([SENDER_EMAIL, SENDGRID_API_KEY, MONGO_URI]):
     raise RuntimeError("Missing required env variables")
 
+# ---------------- INIT SENDGRID ONCE ----------------
+sg = SendGridAPIClient(SENDGRID_API_KEY)
+
 # ---------------- MONGO CONNECTION ----------------
 client = MongoClient(MONGO_URI)
 db = client["universityDB"]
@@ -27,114 +31,113 @@ app = Flask(__name__)
 app.secret_key = "secret123"
 
 # -------------------------------------------------
-# ADVANCED TRAINING DATA
+# TRAINING DATA (ADVANCED VERSION)
 # -------------------------------------------------
 
 requests_data = [
-"leave permission","medical leave","attendance shortage","bonafide certificate",
-"study certificate","transfer certificate","migration certificate",
-"course completion certificate","internship permission letter",
-"project approval academic","elective subject change",
-"semester registration issue","section change request",
-"academic calendar clarification","id card issue",
+    "leave permission","medical leave","attendance shortage","bonafide certificate",
+    "study certificate","transfer certificate","migration certificate",
+    "course completion certificate","internship permission letter",
+    "project approval academic","elective subject change",
+    "semester registration issue","section change request",
+    "academic calendar clarification","id card issue",
 
-"tuition fee payment issue","fee receipt not generated","refund request",
-"caution deposit refund","excess fee paid","fine payment issue",
-"payment gateway failure","fee structure clarification",
-"installment request","scholarship adjustment in fees",
+    "tuition fee payment issue","fee receipt not generated","refund request",
+    "caution deposit refund","excess fee paid","fine payment issue",
+    "payment gateway failure","fee structure clarification",
+    "installment request","scholarship adjustment in fees",
 
-"hall ticket not generated","wrong subject in hall ticket","exam fee issue",
-"revaluation request","photocopy of answer script",
-"supplementary exam registration","improvement exam",
-"internal marks correction","grade card correction",
-"backlog registration issue",
+    "hall ticket not generated","wrong subject in hall ticket","exam fee issue",
+    "revaluation request","photocopy of answer script",
+    "supplementary exam registration","improvement exam",
+    "internal marks correction","grade card correction",
+    "backlog registration issue",
 
-"scholarship not credited","nsp portal issue","minority scholarship",
-"post matric scholarship","upload document correction",
-"income certificate issue","bank account update",
-"aadhaar mismatch","scholarship renewal problem",
+    "scholarship not credited","nsp portal issue","minority scholarship",
+    "post matric scholarship","upload document correction",
+    "income certificate issue","bank account update",
+    "aadhaar mismatch","scholarship renewal problem",
 
-"room allocation issue","room change request","water problem hostel",
-"electricity issue hostel","wifi issue hostel",
-"mess quality complaint","mess fee payment issue",
-"furniture damage","cleaning issue hostel",
-"security complaint hostel","gate pass permission",
+    "room allocation issue","room change request","water problem hostel",
+    "electricity issue hostel","wifi issue hostel",
+    "mess quality complaint","mess fee payment issue",
+    "furniture damage","cleaning issue hostel",
+    "security complaint hostel","gate pass permission",
 
-"project topic approval","internship approval","lab permission",
-"attendance condonation","faculty complaint",
-"internal marks discussion","subject doubt clarification",
-"research paper submission","recommendation letter",
-"department event permission",
+    "project topic approval","internship approval","lab permission",
+    "attendance condonation","faculty complaint",
+    "internal marks discussion","subject doubt clarification",
+    "research paper submission","recommendation letter",
+    "department event permission",
 
-"serious grievance","faculty misconduct","harassment complaint",
-"policy complaint","disciplinary issue",
-"appeal against suspension","overall college complaint",
+    "serious grievance","faculty misconduct","harassment complaint",
+    "policy complaint","disciplinary issue",
+    "appeal against suspension","overall college complaint",
 
-"placement registration issue","resume submission","internship opportunity",
-"company drive details","offer letter issue",
-"training program enrollment","aptitude training request",
-"mock interview request","noc for internship",
+    "placement registration issue","resume submission","internship opportunity",
+    "company drive details","offer letter issue",
+    "training program enrollment","aptitude training request",
+    "mock interview request","noc for internship",
 
-"sports certificate","tournament participation",
-"sports equipment issue","ground booking",
-"sports quota certificate","attendance for sports",
-"sports scholarship",
+    "sports certificate","tournament participation",
+    "sports equipment issue","ground booking",
+    "sports quota certificate","attendance for sports",
+    "sports scholarship",
 
-"library fine issue","book not available","lost book",
-"library id issue","digital library access","thesis submission",
+    "library fine issue","book not available","lost book",
+    "library id issue","digital library access","thesis submission",
 
-"bus pass issue","route change transport","bus timing issue",
-"transport fee payment","new transport request",
+    "bus pass issue","route change transport","bus timing issue",
+    "transport fee payment","new transport request",
 
-"erp login issue","portal password reset",
-"wifi campus issue","email id problem","software lab issue",
+    "erp login issue","portal password reset",
+    "wifi campus issue","email id problem","software lab issue",
 
-"ragging complaint","discrimination complaint",
-"academic bias complaint"
+    "ragging complaint","discrimination complaint",
+    "academic bias complaint"
 ]
 
 departments = [
-"Academic","Academic","Academic","Academic","Academic","Academic",
-"Academic","Academic","Academic","Academic","Academic","Academic",
-"Academic","Academic","Academic",
+    "Academic","Academic","Academic","Academic","Academic","Academic",
+    "Academic","Academic","Academic","Academic","Academic","Academic",
+    "Academic","Academic","Academic",
 
-"Accounts","Accounts","Accounts","Accounts","Accounts",
-"Accounts","Accounts","Accounts","Accounts","Accounts",
+    "Accounts","Accounts","Accounts","Accounts","Accounts",
+    "Accounts","Accounts","Accounts","Accounts","Accounts",
 
-"Examination","Examination","Examination","Examination",
-"Examination","Examination","Examination","Examination",
-"Examination","Examination",
+    "Examination","Examination","Examination","Examination",
+    "Examination","Examination","Examination","Examination",
+    "Examination","Examination",
 
-"Scholarship","Scholarship","Scholarship","Scholarship",
-"Scholarship","Scholarship","Scholarship","Scholarship","Scholarship",
+    "Scholarship","Scholarship","Scholarship","Scholarship",
+    "Scholarship","Scholarship","Scholarship","Scholarship","Scholarship",
 
-"Hostel","Hostel","Hostel","Hostel","Hostel",
-"Hostel","Hostel","Hostel","Hostel","Hostel","Hostel",
+    "Hostel","Hostel","Hostel","Hostel","Hostel",
+    "Hostel","Hostel","Hostel","Hostel","Hostel","Hostel",
 
-"HOD","HOD","HOD","HOD","HOD",
-"HOD","HOD","HOD","HOD","HOD",
+    "HOD","HOD","HOD","HOD","HOD",
+    "HOD","HOD","HOD","HOD","HOD",
 
-"Principal","Principal","Principal","Principal",
-"Principal","Principal","Principal",
+    "Principal","Principal","Principal","Principal",
+    "Principal","Principal","Principal",
 
-"TPO","TPO","TPO","TPO","TPO",
-"TPO","TPO","TPO","TPO",
+    "TPO","TPO","TPO","TPO","TPO",
+    "TPO","TPO","TPO","TPO",
 
-"Sports","Sports","Sports","Sports",
-"Sports","Sports","Sports",
+    "Sports","Sports","Sports","Sports",
+    "Sports","Sports","Sports",
 
-"Library","Library","Library","Library","Library","Library",
+    "Library","Library","Library","Library","Library","Library",
 
-"Transport","Transport","Transport","Transport","Transport",
+    "Transport","Transport","Transport","Transport","Transport",
 
-"IT","IT","IT","IT","IT",
+    "IT","IT","IT","IT","IT",
 
-"Grievance","Grievance","Grievance"
+    "Grievance","Grievance","Grievance"
 ]
 
 vectorizer = TfidfVectorizer(stop_words="english", ngram_range=(1,2))
 X = vectorizer.fit_transform(requests_data)
-
 model = MultinomialNB()
 model.fit(X, departments)
 
@@ -143,7 +146,7 @@ model.fit(X, departments)
 # -------------------------------------------------
 
 department_emails = {
-    "Academic": "vishwasbekkanti@gmail.com",
+    "Academic": "academic@university.edu",
     "Accounts": "accounts@university.edu",
     "Examination": "examcell@university.edu",
     "Scholarship": "scholarship@university.edu",
@@ -159,27 +162,36 @@ department_emails = {
 }
 
 # -------------------------------------------------
-# SEND EMAIL (UNCHANGED SENDGRID)
+# EMAIL FUNCTION
 # -------------------------------------------------
 
 def send_email(to_email, subject, body, reply_to):
+    try:
+        message = Mail(
+            from_email=SENDER_EMAIL,
+            to_emails=to_email,
+            subject=subject,
+            plain_text_content=body,
+        )
+        message.reply_to = reply_to
+        response = sg.send(message)
+        print("Email Status:", response.status_code)
+    except Exception as e:
+        print("Email Error:", str(e))
 
-    message = Mail(
-        from_email=SENDER_EMAIL,
-        to_emails=to_email,
-        subject=subject,
-        plain_text_content=body,
-    )
 
-    message.reply_to = reply_to
-    sg = SendGridAPIClient(SENDGRID_API_KEY)
-    sg.send(message)
+# ---------------- BACKGROUND THREAD ----------------
+
+def async_send_email(*args):
+    thread = threading.Thread(target=send_email, args=args)
+    thread.start()
+
 
 # -------------------------------------------------
 # ROUTE
 # -------------------------------------------------
 
-@app.route("/", methods=["GET","POST"])
+@app.route("/", methods=["GET", "POST"])
 def index():
 
     if request.method == "POST":
@@ -215,7 +227,7 @@ def index():
 
         primary_department = matched_departments[0]
 
-        # SAVE TO MONGO
+        # SAVE TO DB
         requests_collection.insert_one({
             "name": name,
             "student_id": sid,
@@ -226,10 +238,10 @@ def index():
             "request_text": req_text
         })
 
+        # EMAIL BODY
         department_body = f"""
 University AI Automated Routing System
 
-Student Details:
 Name: {name}
 Student ID: {sid}
 Email: {student_email}
@@ -259,30 +271,23 @@ You may contact the {primary_department} Department for follow-up.
 University Administration
 """
 
-        try:
+        # Send to all departments in ONE call (background)
+        async_send_email(
+            receiver_emails,
+            "University Request - AI Auto Routed",
+            department_body,
+            student_email
+        )
 
-            # Send to all matched departments
-            for email in receiver_emails:
-                send_email(
-                    email,
-                    "University Request - AI Auto Routed",
-                    department_body,
-                    student_email
-                )
+        # Send confirmation to student (background)
+        async_send_email(
+            student_email,
+            "Request Received - Confirmation",
+            student_body,
+            SENDER_EMAIL
+        )
 
-            # Send confirmation to student
-            send_email(
-                student_email,
-                "Request Received - Confirmation",
-                student_body,
-                SENDER_EMAIL
-            )
-
-            flash(f"Routed To: {', '.join(matched_departments)}")
-
-        except Exception:
-            flash("Saved to DB, but email failed.")
-
+        flash(f"Routed To: {', '.join(matched_departments)}")
         return redirect("/")
 
     return render_template("index.html")
