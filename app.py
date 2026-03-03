@@ -146,7 +146,7 @@ model.fit(X, departments)
 # -------------------------------------------------
 
 department_emails = {
-    "Academic": "academic@university.edu",
+    "Academic": "vishwasbekkanti@gmail.com",
     "Accounts": "accounts@university.edu",
     "Examination": "examcell@university.edu",
     "Scholarship": "scholarship@university.edu",
